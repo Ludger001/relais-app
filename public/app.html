@@ -267,6 +267,14 @@
           <select id="finance-agency-select" class="custom-select">
             <!-- Dynamique -->
           </select>
+          <label>Période du bilan :</label>
+          <select id="finance-period-select" class="custom-select">
+            <option value="today">Aujourd'hui</option>
+            <option value="yesterday">Hier</option>
+            <option value="7d">7 derniers jours</option>
+            <option value="30d">30 derniers jours</option>
+            <option value="all">Tout l'historique</option>
+          </select>
         </div>
       </div>
 
@@ -280,7 +288,7 @@
         <div class="kpi-card">
           <div class="kpi-label">Frais de Livraison Déduits</div>
           <div class="kpi-value warning" id="kpi-total-fees">- 18 500 FCFA</div>
-          <div class="kpi-sub">10 livraisons réussies • Tarif convenu</div>
+          <div class="kpi-sub" id="finance-period-echo">Calcul sur la période sélectionnée</div>
         </div>
         <div class="kpi-card highlight-green">
           <div class="kpi-label">Solde Net à Reverser au Marchand</div>
@@ -323,6 +331,7 @@
               <th>Net Marchand</th>
               <th>Statut Colis</th>
               <th>Statut Reversement</th>
+              <th>Clôture Agence</th>
             </tr>
           </thead>
           <tbody id="finance-orders-tbody">

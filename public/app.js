@@ -6,12 +6,82 @@
  * la passation d'ordres de livraison COD, le point financier et le SuperAdmin.
  */
 
+// 0. OUTILS DE DATE (le bilan doit pouvoir se calculer sur une journée précise)
+function atDay(daysBack, hours, minutes) {
+  const d = new Date();
+  d.setDate(d.getDate() - daysBack);
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function formatOrderDate(date) {
+  const heure = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  const jour = new Date(date);
+  jour.setHours(0, 0, 0, 0);
+  const ecart = Math.round((startOfToday() - jour) / 86400000);
+  if (ecart === 0) return `Aujourd'hui ${heure}`;
+  if (ecart === 1) return `Hier ${heure}`;
+  return `${date.toLocaleDateString('fr-FR')} ${heure}`;
+}
+
+// Bornes de la période sélectionnée pour le point financier
+function periodRange(period) {
+  const debutJour = startOfToday();
+  const finJour = new Date(debutJour);
+  finJour.setDate(finJour.getDate() + 1);
+
+  switch (period) {
+    case 'today':
+      return { from: debutJour, to: finJour };
+    case 'yesterday': {
+      const hier = new Date(debutJour);
+      hier.setDate(hier.getDate() - 1);
+      return { from: hier, to: debutJour };
+    }
+    case '7d': {
+      const from = new Date(debutJour);
+      from.setDate(from.getDate() - 6);
+      return { from, to: finJour };
+    }
+    case '30d': {
+      const from = new Date(debutJour);
+      from.setDate(from.getDate() - 29);
+      return { from, to: finJour };
+    }
+    default:
+      return null; // 'all' : aucune borne
+  }
+}
+
+function isInPeriod(date, period) {
+  const range = periodRange(period);
+  if (!range) return true;
+  return date >= range.from && date < range.to;
+}
+
+function periodLabel(period) {
+  switch (period) {
+    case 'today': return "la journée d'aujourd'hui";
+    case 'yesterday': return "la journée d'hier";
+    case '7d': return 'les 7 derniers jours';
+    case '30d': return 'les 30 derniers jours';
+    default: return 'toute la période';
+  }
+}
+
 // 1. ÉTAT GLOBAL DE L'APPLICATION
 const state = {
   currentRole: 'merchant', // 'merchant', 'agency', 'admin'
   isSubscribed: true,
   currentCountryFilter: 'ALL',
   selectedAgencyId: 'agency-ci-1',
+  currentPeriod: 'today', // 'today', 'yesterday', '7d', '30d', 'all'
   
   // Agences dans les 5 pays de lancement
   agencies: [
@@ -161,10 +231,12 @@ const state = {
       codAmount: 15000,
       deliveryFee: 2000,
       recipientName: 'Mme Konan Aïssata',
+      recipientPhone: '07 45 88 12 90',
       recipientCity: 'Cocody Angré',
-      status: 'delivered', // 'pending', 'in_transit', 'delivered', 'returned'
+      recipientAddress: 'Résidence Les Jardins, Villa 12, face pharmacie Angré 8e Tranche',
+      status: 'delivered', // 'pending', 'in_transit', 'delivered', 'failed', 'returned'
       payoutStatus: 'unpaid', // 'unpaid', 'paid'
-      createdAt: 'Aujourd\'hui 10:25'
+      createdAt: atDay(0, 10, 25)
     },
     {
       id: 'REL-CI-0102',
@@ -174,10 +246,12 @@ const state = {
       codAmount: 30000,
       deliveryFee: 2000,
       recipientName: 'M. Touré Mamadou',
+      recipientPhone: '05 03 77 41 26',
       recipientCity: 'Yopougon Maroc',
+      recipientAddress: 'Rue des Jasmins, immeuble bleu, 3e étage, porte 7',
       status: 'in_transit',
       payoutStatus: 'unpaid',
-      createdAt: 'Aujourd\'hui 11:05'
+      createdAt: atDay(0, 11, 5)
     },
     {
       id: 'REL-CI-0098',
@@ -187,10 +261,12 @@ const state = {
       codAmount: 22000,
       deliveryFee: 2000,
       recipientName: 'Mme Bamba Fatim',
+      recipientPhone: '01 62 09 55 38',
       recipientCity: 'Marcory Zone 4',
+      recipientAddress: 'Boulevard VGE, en face du supermarché Cash Center',
       status: 'delivered',
       payoutStatus: 'unpaid',
-      createdAt: 'Hier 14:10'
+      createdAt: atDay(1, 14, 10)
     }
   ],
 
@@ -516,6 +592,7 @@ function formatStatus(status) {
     case 'delivered': return 'Livré & Encaissé';
     case 'in_transit': return 'En livraison';
     case 'pending': return 'En attente';
+    case 'failed': return 'Échec de livraison';
     case 'returned': return 'Retourné';
     default: return status;
   }
@@ -534,10 +611,12 @@ function setupOrdersAndFinance() {
       codAmount: parseFloat(document.getElementById('order-cod-amount').value),
       deliveryFee: parseFloat(document.getElementById('order-delivery-fee').value),
       recipientName: document.getElementById('order-recipient-name').value,
+      recipientPhone: document.getElementById('order-recipient-phone').value,
       recipientCity: document.getElementById('order-recipient-city').value,
+      recipientAddress: document.getElementById('order-recipient-address').value,
       status: 'pending',
       payoutStatus: 'unpaid',
-      createdAt: 'À l\'instant'
+      createdAt: new Date()
     };
 
     // Ajouter la commande
@@ -553,7 +632,12 @@ function setupOrdersAndFinance() {
             `Produit : ${newOrder.productName} (x${newOrder.qty})<br>` +
             `Montant cash à encaisser : <strong>${newOrder.codAmount.toLocaleString()} FCFA</strong><br>` +
             `Frais agence : ${newOrder.deliveryFee.toLocaleString()} FCFA<br>` +
-            `Client : ${newOrder.recipientName} (${newOrder.recipientCity})`
+            `<br><strong>Destinataire</strong><br>` +
+            `${newOrder.recipientName}<br>` +
+            `📞 <strong>${newOrder.recipientPhone}</strong><br>` +
+            `📍 ${newOrder.recipientAddress}, ${newOrder.recipientCity}<br>` +
+            `<em style="opacity:.75">Coordonnées transmises par Relais pour cette livraison uniquement.</em>`,
+      isOrderCard: true
     });
 
     // Fermer modal et rafraîchir
@@ -602,8 +686,21 @@ function renderFinanceView() {
     });
   }
 
-  // Filtrer les commandes pour cette agence
-  const agencyOrders = state.orders.filter(o => o.agencyId === state.selectedAgencyId);
+  // Sélecteur de période : le bilan se calcule sur une journée, pas sur l'éternité
+  const periodSelect = document.getElementById('finance-period-select');
+  if (periodSelect && !periodSelect.dataset.bound) {
+    periodSelect.value = state.currentPeriod;
+    periodSelect.addEventListener('change', (e) => {
+      state.currentPeriod = e.target.value;
+      renderFinanceView();
+    });
+    periodSelect.dataset.bound = '1';
+  }
+
+  // Filtrer les commandes pour cette agence ET sur la période choisie
+  const agencyOrders = state.orders
+    .filter(o => o.agencyId === state.selectedAgencyId)
+    .filter(o => isInPeriod(o.createdAt, state.currentPeriod));
   const deliveredOrders = agencyOrders.filter(o => o.status === 'delivered');
 
   const totalCollected = deliveredOrders.reduce((acc, curr) => acc + curr.codAmount, 0);
@@ -614,31 +711,87 @@ function renderFinanceView() {
   document.getElementById('kpi-total-fees').textContent = `- ${totalFees.toLocaleString()} FCFA`;
   document.getElementById('kpi-net-payout').textContent = `${netPayout.toLocaleString()} FCFA`;
 
+  const periodEcho = document.getElementById('finance-period-echo');
+  if (periodEcho) {
+    periodEcho.textContent =
+      `${deliveredOrders.length} livraison(s) réussie(s) sur ${agencyOrders.length} commande(s), pour ${periodLabel(state.currentPeriod)}.`;
+  }
+
   // Tableau détaillé
   const tbody = document.getElementById('finance-orders-tbody');
   if (!tbody) return;
 
   if (agencyOrders.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem;">Aucune commande rattachée à cette agence.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 2rem;">Aucune commande pour ${periodLabel(state.currentPeriod)}.</td></tr>`;
     return;
   }
 
+  const isAgency = state.currentRole === 'agency';
+
   tbody.innerHTML = agencyOrders.map(order => {
     const net = order.status === 'delivered' ? (order.codAmount - order.deliveryFee) : 0;
+    const enCours = order.status === 'pending' || order.status === 'in_transit';
+
+    // Seule l'agence clôture une livraison : c'est elle qui a le colis et encaisse le cash
+    const actions = isAgency && enCours
+      ? `<button class="btn-status-action btn-status-ok" data-order="${order.id}" data-next="delivered">✅ Livré &amp; encaissé</button>
+         <button class="btn-status-action btn-status-ko" data-order="${order.id}" data-next="failed">✖ Échec</button>`
+      : `<span style="opacity:.5">—</span>`;
+
     return `
       <tr>
-        <td><strong>${order.id}</strong></td>
+        <td><strong>${order.id}</strong><br><span style="opacity:.6; font-size:.75rem;">${formatOrderDate(order.createdAt)}</span></td>
         <td>${order.productName}</td>
-        <td>${order.recipientName}</td>
+        <td>${order.recipientName}<br><span style="opacity:.6; font-size:.75rem;">${order.recipientPhone || '—'}</span></td>
         <td>${order.recipientCity}</td>
         <td style="color: #fff; font-weight: 600;">${order.codAmount.toLocaleString()} F</td>
         <td style="color: var(--warning);">${order.deliveryFee.toLocaleString()} F</td>
         <td style="color: var(--primary); font-weight: 700;">${net.toLocaleString()} F</td>
         <td><span class="order-badge ${order.status}">${formatStatus(order.status)}</span></td>
         <td>${order.payoutStatus === 'paid' ? '🟢 Réglé' : '🟡 En attente'}</td>
+        <td>${actions}</td>
       </tr>
     `;
   }).join('');
+
+  // Brancher les boutons de clôture fraîchement injectés
+  tbody.querySelectorAll('.btn-status-action').forEach(btn => {
+    btn.addEventListener('click', () => {
+      updateOrderStatus(btn.dataset.order, btn.dataset.next);
+    });
+  });
+}
+
+// L'agence clôture sa tournée : c'est ce geste qui alimente tout le bilan financier
+function updateOrderStatus(orderId, newStatus) {
+  const order = state.orders.find(o => o.id === orderId);
+  if (!order) return;
+
+  const previous = order.status;
+  order.status = newStatus;
+
+  // Trace pour l'audit (table order_status_logs côté base)
+  state.securityLogs = state.securityLogs || [];
+
+  const messages = state.conversations[order.agencyId] || [];
+  messages.push({
+    id: Date.now(),
+    sender: 'agency',
+    time: 'À l\'instant',
+    text: newStatus === 'delivered'
+      ? `✅ <strong>[${order.id}] Livrée et encaissée.</strong><br>` +
+        `${order.codAmount.toLocaleString()} FCFA collectés chez ${order.recipientName}.<br>` +
+        `Net à reverser sur cette commande : <strong>${(order.codAmount - order.deliveryFee).toLocaleString()} FCFA</strong>.`
+      : `✖ <strong>[${order.id}] Tentative de livraison échouée.</strong><br>` +
+        `Client injoignable ou refus. Aucun encaissement. Le colis reste en attente d'instruction.`
+  });
+  state.conversations[order.agencyId] = messages;
+
+  console.log(`[Relais] Commande ${orderId} : ${previous} → ${newStatus}`);
+
+  renderActiveChat();
+  renderOrdersStrip();
+  renderFinanceView();
 }
 
 // =============================================================================
@@ -774,6 +927,8 @@ function setupRoleSwitcher() {
       }
 
       renderActiveChat();
+      // Les actions de clôture n'appartiennent qu'à l'agence : il faut redessiner le bilan
+      renderFinanceView();
     });
   });
 }

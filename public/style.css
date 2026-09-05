@@ -925,6 +925,42 @@ body {
   color: var(--warning);
 }
 
+.order-badge.failed,
+.order-badge.returned {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* BOUTONS DE CLÔTURE DE TOURNÉE (visibles uniquement pour l'agence) */
+.btn-status-action {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 5px 9px;
+  margin: 2px 3px 2px 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.btn-status-action:hover {
+  filter: brightness(0.94);
+  transform: translateY(-1px);
+}
+
+.btn-status-ok {
+  background: #ecfdf5;
+  color: var(--primary);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.btn-status-ko {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
 /* BULLES DE MESSAGE DU CHAT */
 .messages-stream-container {
   flex: 1;
