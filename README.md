@@ -38,7 +38,7 @@ public/                      Le site (c'est ce que Vercel met en ligne)
   lib/antiBypassFilter.js    Filtre anti-désintermédiation
   assets/                    Images
 
-database/schema.sql          Schéma PostgreSQL / Supabase (13 tables) — pas encore exécuté
+database/                    Schéma SQL réellement appliqué + notes de sécurité
 tests/testAntiBypass.js      Tests du filtre
 vercel.json                  Config de déploiement
 ```
@@ -67,7 +67,7 @@ sur des données qui n'existent pas encore.
 - [x] **Bloc 0** — Outillage (Node.js, Git)
 - [x] **Bloc 1** — Mise en ligne sur Vercel → https://relais-app-wwk4.vercel.app
 - [x] **Bloc 2** — Réparation des trous métier du prototype
-- [ ] **Bloc 3** — Supabase : schéma + règles RLS + comptes
+- [x] **Bloc 3** — Supabase : schéma + règles RLS (voir [database/README.md](database/README.md))
 - [ ] **Bloc 4** — Parcours d'inscription réel (tarif → formulaire → compte → rôle)
 - [ ] **Bloc 5** — Tableau de bord marchand sur vraies données
 - [ ] **Bloc 6** — Tableau de bord agence + validation KYC
@@ -83,8 +83,10 @@ sur des données qui n'existent pas encore.
 2. **Le filtre détecte les chiffres écrits en toutes lettres mais ne les masque pas.**
    Le test « numéro en lettres » passe uniquement parce que le mot « contact » est
    repéré. À reprendre au Bloc 7.
-3. **`database/schema.sql` n'a aucune règle RLS.** Sans elles, sur Supabase, chaque
-   utilisateur pourrait lire les conversations de tous les autres. Bloc 3.
-4. **Aucun des deux formulaires d'inscription ne demande de mot de passe** — impossible
+3. **Aucun des deux formulaires d'inscription ne demande de mot de passe** — impossible
    de se reconnecter. À traiter au Bloc 4.
-5. **Le paiement de l'abonnement est factice** (`setTimeout` + `alert`). Bloc 8.
+4. **Le paiement de l'abonnement est factice** (`setTimeout` + `alert`). Bloc 8.
+5. **L'interface ne parle pas encore à la base.** Le schéma et les règles de sécurité
+   existent et sont testés, mais `public/app.js` tourne toujours sur des données
+   simulées. C'est le Bloc 4 qui fait la jonction.
+6. **Suppression de compte impossible en l'état** — voir [database/README.md](database/README.md).
