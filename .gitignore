@@ -1,0 +1,19 @@
+# Dependances installees par npm — jamais versionnees
+node_modules/
+
+# Secrets : cles Supabase, cles de paiement... NE JAMAIS COMMITER
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel/
+
+# Systeme
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*

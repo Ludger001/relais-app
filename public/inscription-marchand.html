@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscription E-commerçant — Relais (Pass Expansion Multi-Pays)</title>
+  <meta name="description" content="Créez votre compte e-commerçant sur Relais et activez votre Pass Expansion Multi-Pays pour collaborer avec des agences COD vérifiées au Bénin, Togo, Sénégal, Côte d'Ivoire et Gabon.">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="landing.css">
+</head>
+<body class="landing-body">
+  <!-- HEADER MINIMALISTE -->
+  <header class="public-nav-header">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <div class="logo-icon-glow">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-text-group">
+          <span class="brand-title">RELAIS</span>
+          <span class="brand-sub">Espace Marchand</span>
+        </div>
+      </a>
+      <div class="nav-cta-group">
+        <a href="index.html" class="btn btn-outline-sm">← Retour à l'accueil</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- FORMULAIRE DE SOUSCRIPTION MARCHAND -->
+  <main class="section-container" style="max-width: 860px; padding-top: 3rem; padding-bottom: 5rem;">
+    <div class="auth-card-wrap">
+      
+      <div class="auth-header-block">
+        <div class="tier-badge" style="display: inline-block;">COMPTE E-COMMERÇANT</div>
+        <h1 class="auth-title">Activez votre Pass Expansion Multi-Pays</h1>
+        <p class="auth-subtitle">Accédez immédiatement au réseau des agences COD vérifiées au Bénin, Togo, Sénégal, Côte d'Ivoire et Gabon.</p>
+      </div>
+
+      <div class="checkout-layout">
+        <!-- FORMULAIRE GAUCHE -->
+        <div class="checkout-form-side">
+          <form id="merchant-registration-form" class="checkout-form" onsubmit="handleMerchantSubmit(event)">
+            
+            <h3 class="form-section-title">1. Vos Informations Professionnelles</h3>
+            
+            <div class="form-group">
+              <label for="merchant-name">Nom complet du dirigeant *</label>
+              <input type="text" id="merchant-name" class="form-input" placeholder="Ex: Amidou Traoré" required value="Amidou Traoré">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="merchant-store">Nom de votre boutique / marque *</label>
+                <input type="text" id="merchant-store" class="form-input" placeholder="Ex: Body Revenge / Glow Beauty" required value="Glow Beauty Store">
+              </div>
+              <div class="form-group">
+                <label for="merchant-country">Votre pays de base *</label>
+                <select id="merchant-country" class="custom-select" required>
+                  <option value="BJ" selected>🇧🇯 Bénin</option>
+                  <option value="CI">🇨🇮 Côte d'Ivoire</option>
+                  <option value="SN">🇸🇳 Sénégal</option>
+                  <option value="TG">🇹🇬 Togo</option>
+                  <option value="GA">🇬🇦 Gabon</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="merchant-email">Adresse email professionnelle *</label>
+                <input type="email" id="merchant-email" class="form-input" placeholder="Ex: amidou@glowbeauty.com" required value="contact@glowbeauty.com">
+              </div>
+              <div class="form-group">
+                <label for="merchant-phone">Téléphone (Format national à jour) *</label>
+                <input type="text" id="merchant-phone" class="form-input" placeholder="Ex: 01 67 53 57 41" required value="01 67 53 57 41">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="merchant-products">Catégories de produits vendus *</label>
+              <input type="text" id="merchant-products" class="form-input" placeholder="Ex: Cosmétiques, Soins du visage, Bien-être" required value="Cosmétiques & Soins du visage">
+            </div>
+
+            <h3 class="form-section-title" style="margin-top: 1.5rem;">2. Règlement de l'Abonnement (Mobile Money)</h3>
+            <div class="momo-selection-grid">
+              <label class="momo-radio-card active">
+                <input type="radio" name="momo-provider" value="wave" checked>
+                <span class="momo-radio-name">Wave</span>
+                <span class="momo-radio-sub">Bénin, Sénégal, CI</span>
+              </label>
+              <label class="momo-radio-card">
+                <input type="radio" name="momo-provider" value="mtn">
+                <span class="momo-radio-name">MTN MoMo</span>
+                <span class="momo-radio-sub">Bénin, CI</span>
+              </label>
+              <label class="momo-radio-card">
+                <input type="radio" name="momo-provider" value="orange">
+                <span class="momo-radio-name">Orange Money</span>
+                <span class="momo-radio-sub">CI, Sénégal</span>
+              </label>
+              <label class="momo-radio-card">
+                <input type="radio" name="momo-provider" value="airtel">
+                <span class="momo-radio-name">Airtel / Moov</span>
+                <span class="momo-radio-sub">Gabon, Togo</span>
+              </label>
+            </div>
+
+            <div class="form-checkbox-wrap">
+              <input type="checkbox" id="merchant-terms" required checked>
+              <label for="merchant-terms">J'accepte les CGU de Relais et l'interdiction formelle de contournement du chat sécurisé.</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-submit-merchant">
+              Payer 10 000 FCFA & Ouvrir Mon Espace
+            </button>
+          </form>
+        </div>
+
+        <!-- RÉCAPITULATIF DROITE -->
+        <div class="checkout-summary-side">
+          <div class="summary-card">
+            <h3>Récapitulatif de Commande</h3>
+            <div class="summary-plan-badge">Pass Marchand Multi-Pays</div>
+            
+            <div class="summary-price-row">
+              <span>Tarif normal :</span>
+              <span style="text-decoration: line-through; color: var(--text-dim);">15 000 FCFA</span>
+            </div>
+            <div class="summary-price-row highlight">
+              <span>Offre de Lancement :</span>
+              <span class="summary-price-val">10 000 FCFA <small>/ mois</small></span>
+            </div>
+
+            <hr class="summary-divider">
+
+            <ul class="summary-benefits">
+              <li>✔ Annuaire vérifié 5 pays débloqué</li>
+              <li>✔ Messagerie exclusive et sécurisée</li>
+              <li>✔ Passation d'ordres de livraison express</li>
+              <li>✔ Bilan financier & réconciliation COD</li>
+              <li>✔ Assistance prioritaire anti-litiges</li>
+            </ul>
+
+            <div class="security-guarantee-box">
+              🔒 <strong>Paiement 100% Sécurisé :</strong> Activation instantanée de vos accès dès confirmation du débit Mobile Money.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    function handleMerchantSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-submit-merchant');
+      btn.textContent = 'Traitement du débit Mobile Money en cours...';
+      btn.style.opacity = '0.7';
+
+      setTimeout(() => {
+        alert('Succès ! Votre souscription de 10 000 FCFA a été validée avec succès. Bienvenue sur votre espace opérationnel Relais !');
+        window.location.href = 'app.html';
+      }, 1500);
+    }
+  </script>
+</body>
+</html>

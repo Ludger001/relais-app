@@ -1,0 +1,13 @@
+{
+  "name": "relais-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Relais — reseau B2B ferme d'agences de livraison COD certifiees (Benin, Togo, Senegal, Cote d'Ivoire, Gabon)",
+  "scripts": {
+    "dev": "serve public -l 3000",
+    "test": "node tests/testAntiBypass.js"
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}
