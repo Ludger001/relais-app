@@ -10,12 +10,12 @@ collecté, et bouclier anti-désintermédiation.
 
 ## État actuel
 
-**Ce qui est réel :** les comptes, la connexion, les rôles, et l'annuaire des agences.
-L'application est fermée aux visiteurs et le rôle vient du profil en base, plus d'un
-bouton. Les règles de sécurité sont écrites et testées.
+**Ce qui est réel :** les comptes, la connexion, les rôles, l'annuaire des agences, et
+le chat — messages filtrés côté serveur, enregistrés en base, relus depuis la base.
+L'application est fermée aux visiteurs et le rôle vient du profil, plus d'un bouton.
 
-**Ce qui ne l'est pas encore :** le chat, les commandes et le bilan financier sont vides
-en attendant d'être branchés. Le paiement de l'abonnement est simulé.
+**Ce qui ne l'est pas encore :** les commandes et le bilan financier tournent toujours
+sur des données simulées. Le paiement de l'abonnement n'existe pas.
 
 La logique métier, elle, est juste : le bon de commande transmet les coordonnées du client
 à l'agence, l'agence clôture ses livraisons, et le bilan se calcule sur la période choisie.
@@ -23,32 +23,37 @@ La logique métier, elle, est juste : le bon de commande transmet les coordonné
 ## Démarrer en local
 
 ```bash
-npm install     # une seule fois, installe les outils
-npm run dev     # lance le site sur http://localhost:3000
-npm test        # vérifie le filtre anti-désintermédiation
+npm install            # une seule fois, installe les outils
+npm run dev            # lance le site sur http://localhost:3000
+
+npm test               # filtre, synchronisation des deux copies, rôles, écrans vides
+npm run test:responsive  # 6 pages × 8 formats de téléphones, dans un vrai navigateur
+npm run test:chat        # le filtre serveur est-il contournable ? (navigateur réel)
 ```
+
+Les deux derniers acceptent une URL : `npm run test:responsive https://…` pour vérifier
+la production plutôt que le local.
 
 ## Structure
 
 ```
 public/                      Le site (c'est ce que Vercel met en ligne)
   index.html                 Page d'accueil publique
-  app.html                   L'application (annuaire, chat, commandes, finance, admin)
+  connexion.html             Connexion, mot de passe oublié
   inscription-marchand.html  Inscription e-commerçant
   candidature-agence.html    Candidature agence de livraison
+  app.html                   L'application (annuaire, chat, commandes, finance, admin)
   app.js                     Logique de l'application
   lib/supabaseClient.js      Connexion à Supabase, session, profil
   lib/inscription.js         Logique partagée des deux formulaires
-  connexion.html             Connexion, mot de passe oublié
+  lib/antiBypassFilter.js    Filtre — côté navigateur, avertissement seul
   style.css / landing.css    Styles
-  lib/antiBypassFilter.js    Filtre anti-désintermédiation (avertissement seul)
+  assets/                    Images
 
 supabase/functions/          Fonction serveur : le filtre qui fait foi
 scripts/                     Génération de la copie serveur du filtre
-  assets/                    Images
-
 database/                    Schéma SQL réellement appliqué + notes de sécurité
-tests/testAntiBypass.js      Tests du filtre
+tests/                       Filtre, rôles, écrans vides, responsive, chat
 vercel.json                  Config de déploiement
 ```
 
@@ -126,11 +131,10 @@ de synchronisation compare les fichiers du dépôt, il ne voit pas la version d�
 
 1. **Le paiement de l'abonnement n'existe pas.** L'inscription crée un compte, sans
    aucun prélèvement. Bloc 8.
-4. **Une agence dépose son dossier mais ne peut pas encore envoyer ses pièces KYC.**
-   Elle reste donc invisible dans l'annuaire jusqu'à validation manuelle. Bloc 6.
-5. **L'annuaire lit la vraie base ; le chat, les commandes et le bilan sont encore
-   vides.** Envoyer un message est volontairement impossible tant que le filtre ne
-   tourne pas côté serveur (Bloc 7) : le privilège d'écriture sur `messages` est retiré.
-6. **Suppression de compte impossible en l'état** — voir [database/README.md](database/README.md).
-7. **Comptes de démonstration à supprimer avant l'ouverture** : `marchand@demo.relais`
+2. **Une agence dépose son dossier mais ne peut pas encore envoyer ses pièces KYC.**
+   Elle reste invisible dans l'annuaire jusqu'à validation manuelle en base. Bloc 6.
+3. **Les commandes et le bilan financier restent simulés.** Ils s'affichent à partir
+   de données écrites en dur, pas de la base. C'est la suite du Bloc 5.
+4. **Suppression de compte impossible en l'état** — voir [database/README.md](database/README.md).
+5. **Comptes de démonstration à supprimer avant l'ouverture** : `marchand@demo.relais`
    et `agence@demo.relais`.
