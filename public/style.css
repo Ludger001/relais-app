@@ -1943,3 +1943,16 @@ img, svg, video {
   margin: 0.7rem 0;
   font-size: 0.78rem;
 }
+
+/* Bandeau d'abonnement : il ne s'affiche que lorsqu'il y a quelque chose à dire */
+.bandeau-abonnement {
+  background: var(--warning-bg);
+  border-bottom: 1px solid rgba(217, 119, 6, 0.25);
+  color: #92400e;
+  font-size: 0.83rem;
+  padding: 0.6rem 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .bandeau-abonnement { padding: 0.6rem 1rem; font-size: 0.78rem; }
+}

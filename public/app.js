@@ -181,6 +181,9 @@ const state = {
   // Points financiers (reversements) chargés depuis Supabase
   payouts: [],
 
+  // Abonnement du membre connecté (paywall bilatéral)
+  abonnement: null,
+
   // Tentatives de contournement — table security_violations (Bloc 7)
   securityLogs: []
 };
@@ -203,6 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await chargerConversations();
   await chargerCommandes();
   await chargerPointsFinanciers();
+  await chargerAbonnement();
   await chargerJournalSecurite();
 
   renderAgencies();
@@ -214,6 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupDepotKYC();
   setupModals();
   await renderEspaceAgence();
+  renderAbonnement();
   renderFinanceView();
 });
 
@@ -953,6 +958,58 @@ const ETATS_REVERSEMENT = {
   confirmed: '🟢 Reversement confirmé par les deux parties',
   disputed:  '🔴 Reversement contesté'
 };
+
+// =============================================================================
+// ABONNEMENT — LE PAYWALL BILATÉRAL
+// =============================================================================
+
+/**
+ * L'accès se décide en base, jamais ici : cette lecture sert à informer
+ * l'utilisateur. Même si quelqu'un neutralisait ce code, les règles RLS et
+ * les fonctions serveur continueraient de le tenir à l'écart des données.
+ */
+async function chargerAbonnement() {
+  const { data, error } = await db.rpc('mon_abonnement');
+  if (error) {
+    console.error('[Relais] Abonnement illisible :', error.message);
+    return;
+  }
+  state.abonnement = (data && data[0]) || null;
+}
+
+function renderAbonnement() {
+  const pastille = document.getElementById('sub-status-text');
+  const bandeau = document.getElementById('bandeau-abonnement');
+  const texte = document.getElementById('bandeau-abonnement-texte');
+  const ab = state.abonnement;
+
+  if (state.currentRole === 'admin') {
+    if (bandeau) bandeau.hidden = true;
+    return;
+  }
+
+  if (!ab || !ab.actif) {
+    if (pastille) pastille.textContent = '🔴 Abonnement inactif';
+    if (bandeau) bandeau.hidden = false;
+    if (texte) {
+      texte.innerHTML = !ab
+        ? "Votre abonnement Relais n'est pas encore activé. <strong>Aucun prélèvement n'a lieu pour l'instant</strong> — le paiement en ligne arrive prochainement."
+        : `Votre abonnement a expiré le ${new Date(ab.expire_le).toLocaleDateString('fr-FR')}. Renouvelez-le pour continuer à utiliser Relais.`;
+    }
+    return;
+  }
+
+  if (bandeau) bandeau.hidden = ab.jours_restants > 7;
+  if (texte && ab.jours_restants <= 7) {
+    texte.innerHTML = `Votre abonnement expire dans <strong>${ab.jours_restants} jour(s)</strong>.`;
+  }
+
+  if (pastille) {
+    pastille.textContent = state.currentRole === 'merchant'
+      ? (state.profile.merchant?.store_name || 'Espace marchand')
+      : (state.profile.agency?.company_name || 'Espace agence');
+  }
+}
 
 async function chargerPointsFinanciers() {
   const { data, error } = await db
