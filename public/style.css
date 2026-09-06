@@ -1956,3 +1956,57 @@ img, svg, video {
 @media (max-width: 640px) {
   .bandeau-abonnement { padding: 0.6rem 1rem; font-size: 0.78rem; }
 }
+
+/* =========================================================================== */
+/* MON COMPTE                                                                  */
+/* =========================================================================== */
+
+.compte-infos {
+  margin: 0;
+  padding: 0 1.1rem 1.2rem;
+}
+
+.paire-compte {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.2rem;
+  padding: .55rem 0;
+  border-bottom: 1px dotted var(--border-color);
+  font-size: .88rem;
+}
+.paire-compte:last-child { border-bottom: none; }
+.paire-compte dt { color: var(--text-muted); flex-shrink: 0; }
+.paire-compte dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-main);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* La zone de clôture doit se distinguer du reste : c'est irréversible */
+.zone-dangereuse {
+  border-color: rgba(220, 38, 38, 0.3);
+}
+.zone-dangereuse .admin-card-header h3 { color: var(--danger); }
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  font-family: var(--font-main);
+  font-size: .88rem;
+  font-weight: 700;
+  padding: .65rem 1.2rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.btn-danger:hover { filter: brightness(0.92); }
+.btn-danger:disabled { opacity: .6; cursor: wait; }
+
+@media (max-width: 640px) {
+  .paire-compte { flex-direction: column; gap: .15rem; }
+  .paire-compte dd { text-align: left; }
+  .btn-danger { width: 100%; }
+}

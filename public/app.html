@@ -66,6 +66,10 @@
         Mon Agence
         <span class="tab-badge alert" id="agence-alerte-badge" hidden>!</span>
       </button>
+      <button class="tab-item" data-tab="compte" id="tab-btn-compte">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        Mon Compte
+      </button>
       <button class="tab-item" data-tab="finance" id="tab-btn-finance">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 6v2"></path><path d="M12 16v2"></path></svg>
         Point Financier COD
@@ -351,6 +355,51 @@
     </section>
 
     <!-- VUE 4 : SUPERADMIN (LUDGER) -->
+    <!-- VUE : MON COMPTE (identité, abonnement, clôture) -->
+    <section class="tab-panel" id="view-compte">
+      <div class="panel-header-bar">
+        <div>
+          <h2 class="panel-title">Mon Compte</h2>
+          <p class="panel-subtitle">Vos informations, votre abonnement, et la clôture de votre compte.</p>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <div class="admin-card-header"><h3>Vos informations</h3></div>
+        <dl class="compte-infos" id="compte-infos"></dl>
+      </div>
+
+      <div class="admin-card" style="margin-top: 1.5rem;">
+        <div class="admin-card-header"><h3>Votre abonnement</h3></div>
+        <dl class="compte-infos" id="compte-abonnement"></dl>
+      </div>
+
+      <div class="admin-card zone-dangereuse" style="margin-top: 1.5rem;">
+        <div class="admin-card-header"><h3>Clôturer mon compte</h3></div>
+        <div style="padding: 0 1.1rem 1.2rem;">
+          <p class="form-hint">
+            La clôture est <strong>définitive</strong>. Votre identité et vos coordonnées sont
+            effacées, ainsi que celles des clients que vous avez renseignés.
+          </p>
+          <p class="form-hint">
+            Vos commandes passées — montants, frais et statuts — sont <strong>conservées sous
+            une forme qui ne vous identifie plus</strong>. C'est ce qui permet à vos anciens
+            partenaires de garder leurs propres preuves : un historique commercial engage
+            deux parties, l'une ne peut pas le faire disparaître seule.
+          </p>
+          <p class="form-hint">
+            Un reversement en cours doit être réglé avant de pouvoir clôturer.
+          </p>
+
+          <div id="cloture-retour" class="form-feedback" hidden></div>
+
+          <button type="button" class="btn btn-danger" id="btn-cloturer-compte">
+            Clôturer définitivement mon compte
+          </button>
+        </div>
+      </div>
+    </section>
+
     <!-- VUE 5 : ESPACE DE L'AGENCE (certification et pièces justificatives) -->
     <section class="tab-panel" id="view-agence">
       <div class="panel-header-bar">

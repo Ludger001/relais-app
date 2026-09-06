@@ -216,9 +216,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupOrdersAndFinance();
   setupAdminPanel();
   setupDepotKYC();
+  setupClotureCompte();
   setupModals();
   await renderEspaceAgence();
   renderAbonnement();
+  renderMonCompte();
   renderFinanceView();
 });
 
@@ -1481,6 +1483,99 @@ const ETATS_CERTIFICATION = {
   }
 };
 
+
+// =============================================================================
+// MON COMPTE — INFORMATIONS, ABONNEMENT, CLÔTURE
+// =============================================================================
+
+function renderMonCompte() {
+  const infos = document.getElementById('compte-infos');
+  const abo = document.getElementById('compte-abonnement');
+  const p = state.profile;
+  if (!infos || !p) return;
+
+  const ligne = (cle, valeur) =>
+    `<div class="paire-compte"><dt>${cle}</dt><dd>${valeur ?? '—'}</dd></div>`;
+
+  const roles = { merchant: 'E-commerçant', agency: 'Agence de livraison', admin: 'Administrateur' };
+
+  let metier = '';
+  if (p.role === 'merchant' && p.merchant) {
+    metier = ligne('Boutique', p.merchant.store_name) +
+             ligne('Catégories', (p.merchant.product_categories || []).join(', ') || '—');
+  } else if (p.role === 'agency' && p.agency) {
+    metier = ligne('Agence', p.agency.company_name) +
+             ligne('Ville', p.agency.primary_city) +
+             ligne('Certification', ETATS_CERTIFICATION[p.agency.status]?.libelle || p.agency.status);
+  }
+
+  infos.innerHTML =
+    ligne('Nom', p.full_name) +
+    ligne('E-mail', p.email) +
+    ligne('Rôle', roles[p.role] || p.role) +
+    ligne('Pays', PAYS[p.country]?.nom || p.country) +
+    metier;
+
+  const a = state.abonnement;
+  abo.innerHTML = !a
+    ? ligne('État', 'Aucun abonnement actif') +
+      ligne('Note', "Aucun prélèvement n'a lieu pour l'instant. Le paiement en ligne arrive prochainement.")
+    : ligne('État', a.actif ? '🟢 Actif' : '🔴 Expiré') +
+      ligne('Formule', a.plan) +
+      ligne('Échéance', new Date(a.expire_le).toLocaleDateString('fr-FR')) +
+      ligne('Jours restants', a.jours_restants);
+}
+
+/**
+ * La clôture efface l'identité mais conserve les opérations : un historique
+ * commercial engage deux parties, l'une ne peut pas le faire disparaître seule.
+ */
+function setupClotureCompte() {
+  const bouton = document.getElementById('btn-cloturer-compte');
+  const retour = document.getElementById('cloture-retour');
+  if (!bouton) return;
+
+  bouton.addEventListener('click', async () => {
+    const saisie = prompt(
+      [
+        'Cette action est définitive.',
+        '',
+        'Vos coordonnées et celles de vos clients seront effacées.',
+        'Vos commandes passées resteront, sans plus vous identifier.',
+        '',
+        'Pour confirmer, tapez : CLOTURER'
+      ].join('\n')
+    );
+    if (saisie === null) return;
+
+    if (saisie.trim().toUpperCase() !== 'CLOTURER') {
+      retour.hidden = false;
+      retour.className = 'form-feedback form-feedback-erreur';
+      retour.textContent = "Clôture annulée : le mot de confirmation ne correspond pas.";
+      return;
+    }
+
+    bouton.disabled = true;
+    bouton.textContent = 'Clôture en cours…';
+
+    const { data, error } = await db.rpc('cloturer_mon_compte', { p_confirmation: 'CLOTURER' });
+
+    if (error) {
+      retour.hidden = false;
+      retour.className = 'form-feedback form-feedback-erreur';
+      retour.textContent = error.message;
+      bouton.disabled = false;
+      bouton.textContent = 'Clôturer définitivement mon compte';
+      return;
+    }
+
+    retour.hidden = false;
+    retour.className = 'form-feedback form-feedback-succes';
+    retour.textContent = (data && data[0]?.message) || 'Compte clôturé.';
+    setTimeout(() => seDeconnecter(), 2500);
+  });
+}
+
 async function renderEspaceAgence() {
   if (state.currentRole !== 'agency') return;
 
@@ -1686,8 +1781,8 @@ function setupTabNavigation() {
  * et son bilan, rien d'autre.
  */
 const ONGLETS_PAR_ROLE = {
-  merchant: ['directory', 'chat', 'finance'],
-  agency:   ['chat', 'agence', 'finance'],
+  merchant: ['directory', 'chat', 'finance', 'compte'],
+  agency:   ['chat', 'agence', 'finance', 'compte'],
   admin:    ['directory', 'chat', 'finance', 'admin']
 };
 
@@ -1733,6 +1828,7 @@ function switchTab(tabName) {
   if (tabName === 'finance') renderFinanceView();
   if (tabName === 'chat') renderActiveChat();
   if (tabName === 'agence') renderEspaceAgence();
+  if (tabName === 'compte') renderMonCompte();
   if (tabName === 'admin') renderKYCQueue();
 }
 

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const src = fs.readFileSync(require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
 
-const ONGLETS = ['directory','chat','finance','admin'];
+const ONGLETS = ['directory','chat','agence','finance','compte','admin'];
 const boutons = {}, panneaux = {};
 function el(extra={}) {
   return Object.assign({
@@ -59,8 +59,8 @@ function verifier(role, attendus) {
   });
 }
 
-verifier('merchant', ['directory','chat','finance']);
-verifier('agency',   ['chat','finance']);
+verifier('merchant', ['directory','chat','finance','compte']);
+verifier('agency',   ['chat','agence','finance','compte']);
 verifier('admin',    ['directory','chat','finance','admin']);
 
 console.log(ko === 0 ? '\nTOUT EST CONFORME' : `\n${ko} PROBLEME(S)`);
