@@ -17,8 +17,8 @@ structure, technologies, **modèle d'habilitations**, décisions de design et po
 le chat — messages filtrés côté serveur, enregistrés en base, relus depuis la base.
 L'application est fermée aux visiteurs et le rôle vient du profil, plus d'un bouton.
 
-**Ce qui ne l'est pas encore :** le reversement des fonds (les deux boutons de
-validation sont encore une simulation) et le paiement de l'abonnement.
+**Ce qui ne l'est pas encore :** le paiement de l'abonnement en ligne, et l'envoi
+réel des e-mails. Les deux dépendent d'un compte à ouvrir chez un prestataire.
 
 La logique métier, elle, est juste : le bon de commande transmet les coordonnées du client
 à l'agence, l'agence clôture ses livraisons, et le bilan se calcule sur la période choisie.
@@ -33,6 +33,10 @@ npm test               # filtre, synchronisation des deux copies, rôles, écran
 npm run test:responsive  # 6 pages × 8 formats de téléphones, dans un vrai navigateur
 npm run test:chat        # le filtre serveur est-il contournable ? (navigateur réel)
 npm run test:commande    # cycle complet d'une commande, marchand et agence
+npm run test:kyc         # certification d'une agence, trois rôles
+npm run test:reversement # double accusé de réception
+npm run test:motdepasse  # parcours de réinitialisation
+npm run test:direct      # chat en direct, deux navigateurs simultanés
 ```
 
 Les deux derniers acceptent une URL : `npm run test:responsive https://…` pour vérifier
@@ -88,10 +92,11 @@ sur des données qui n'existent pas encore.
 - [x] **Bloc 3** — Supabase : schéma + règles RLS (voir [database/README.md](database/README.md))
 - [x] **Bloc 4** — Parcours d'inscription réel (compte, connexion, accès protégé)
 - [x] **Bloc 5** — Données réelles : annuaire, chat, commandes et bilan financier
-- [ ] **Bloc 6** — Tableau de bord agence + validation KYC
+- [x] **Bloc 6** — Tableau de bord agence + validation KYC
 - [x] **Bloc 7** — Filtre anti-désintermédiation côté serveur (remonté avant le Bloc 5)
-- [ ] **Bloc 8** — Paiement réel (FedaPay / Kkiapay) et abonnements
-- [ ] **Bloc 9** — Admin, domaine, mise en production
+- [~] **Bloc 8** — Reversement du cash fait ; paiement en ligne à brancher
+- [~] **Bloc 9** — Pages légales, en-têtes de sécurité, tests automatiques faits ;
+       domaine et service d'e-mails à faire
 
 ### 🔴 Engagement à ne pas oublier : le service d'e-mails
 
@@ -135,11 +140,11 @@ de synchronisation compare les fichiers du dépôt, il ne voit pas la version d�
 
 1. **Le paiement de l'abonnement n'existe pas.** L'inscription crée un compte, sans
    aucun prélèvement. Bloc 8.
-2. **Une agence dépose son dossier mais ne peut pas encore envoyer ses pièces KYC.**
-   Elle reste invisible dans l'annuaire jusqu'à validation manuelle en base. Bloc 6.
-3. **Le point financier ne génère pas encore de reversement.** Les boutons « Virement
-   effectué » et « Fonds reçus » affichent une simulation ; la table `financial_payouts`
-   existe mais n'est pas alimentée. Bloc 8.
+2. **Les pages légales n'ont pas été relues par un juriste.** Elles décrivent
+   fidèlement le fonctionnement, mais portent un avertissement visible et doivent
+   être validées avant l'ouverture commerciale.
+3. **Aucun suivi des erreurs en production.** Si l'application casse chez un
+   membre, personne ne le saura. C'est le manque le plus important qui reste.
 4. **Suppression de compte impossible en l'état** — voir [database/README.md](database/README.md).
 5. **Comptes de démonstration à supprimer avant l'ouverture** : `marchand@demo.relais`
    et `agence@demo.relais`.

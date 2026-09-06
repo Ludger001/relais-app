@@ -117,6 +117,29 @@ Chacun peut **contester** tant que le reversement n'est pas confirmé.
 - Un dossier sans pièce est signalé en rouge
 - Une agence ne peut pas se certifier elle-même
 
+### Mot de passe oublié
+- Lien de réinitialisation envoyé par e-mail
+- Page dédiée qui vérifie le jeton, nomme le compte concerné, et refuse les
+  liens périmés avec une explication
+
+### Mon compte
+- Informations du membre, état de l'abonnement
+- **Clôture avec anonymisation** : l'identité disparaît, les opérations restent
+
+### Notation des agences
+- Un avis n'est recevable qu'après une livraison réussie
+- La moyenne est recalculée par la base, jamais saisie
+- Les avis affichent le nom de la boutique, pas l'identité du dirigeant
+
+### Chat en direct
+- Les messages arrivent sans recharger la page
+- La diffusion sert de **signal**, pas de transport : le navigateur relit par
+  le chemin normal, soumis aux règles de sécurité
+
+### Pages légales
+- Conditions générales, politique de confidentialité, charte anti-fraude
+- Écrites à partir du fonctionnement réel — **à faire relire par un juriste**
+
 ### Abonnements
 - Grille tarifaire en base
 - Lecture de l'état avec période de grâce
@@ -135,7 +158,11 @@ relais-app/
 │   ├── connexion.html           connexion et mot de passe oublié
 │   ├── inscription-marchand.html
 │   ├── candidature-agence.html
-│   ├── app.html                 l'application : annuaire, chat, agence, finance, admin
+│   ├── app.html                 l'application : annuaire, chat, agence, compte, finance, admin
+│   ├── nouveau-mot-de-passe.html    réinitialisation après le lien reçu par e-mail
+│   ├── conditions-generales.html
+│   ├── politique-confidentialite.html
+│   ├── charte-anti-fraude.html
 │   ├── app.js                   toute la logique applicative
 │   ├── style.css                design system de l'application
 │   ├── landing.css              design system des pages publiques
@@ -235,6 +262,7 @@ quelqu'un ajoute une policy par erreur plus tard.
 | Annuaire des agences | ✅ | ❌ | ✅ |
 | Chat & commandes | ✅ | ✅ | ✅ |
 | Mon agence (KYC) | ❌ | ✅ | ❌ |
+| Mon compte | ✅ | ✅ | ❌ |
 | Point financier | ✅ | ✅ | ✅ |
 | SuperAdmin | ❌ | ❌ | ✅ |
 
@@ -341,6 +369,25 @@ instant ne peuvent pas produire la même référence.
 compilation : le fichier écrit est le fichier servi. Ajouter React ou un
 empaqueteur coûterait plus qu'il ne rapporterait aujourd'hui.
 
+**Le temps réel transporte un signal, pas du contenu.** Le navigateur n'a pas le
+droit de lire la table `messages` ; la diffusion lui dit seulement que quelque
+chose a bougé, après quoi il relit par le chemin normal. Sans ce détour, il
+faudrait rendre la table lisible au client et le texte d'origine redeviendrait
+accessible.
+
+**On n'efface pas un compte, on l'anonymise.** Les messages et commandes d'un
+membre engagent une autre partie, qui a le droit de conserver ses preuves. Une
+partie ne peut pas faire disparaître un historique qui n'est pas seulement le
+sien. L'identité part, les montants restent.
+
+**La note d'une agence ne se saisit pas.** Elle est recalculée par la base à
+partir d'avis déposés après des livraisons réelles. C'est ce qui la rend
+crédible — et le garde-fou refuse explicitement toute écriture directe.
+
+**Les limites d'usage vivent en base, pas dans la fonction serveur.** Elles
+survivent ainsi à un redéploiement et s'appliquent quelle que soit la voie
+d'appel.
+
 **L'interface ne ment pas.** Un bouton ne dit pas « Payer 10 000 FCFA » s'il ne
 prélève rien. Une zone vide dit pourquoi elle est vide. Un compteur affiche le
 vrai nombre.
@@ -369,7 +416,13 @@ npm run test:chat        # le filtre serveur est-il contournable ?
 npm run test:commande    # cycle complet d'une commande
 npm run test:kyc         # parcours de certification
 npm run test:reversement # double accusé de réception
+npm run test:motdepasse  # parcours de réinitialisation
+npm run test:direct      # chat en direct, deux navigateurs
 ```
+
+Ces vérifications tournent aussi **automatiquement à chaque envoi de code**
+(`.github/workflows/tests.yml`). L'intégration continue se limite aux pages
+publiques : elle ne dispose pas des comptes de démonstration.
 
 Les tests navigateur acceptent une URL pour viser la production :
 
