@@ -63,6 +63,28 @@ D'où la règle du filtre anti-désintermédiation :
 
 ## 2. Fonctionnalités implémentées
 
+### Tableaux de bord
+L'application ouvre sur un tableau de bord propre au rôle. Chacun répond à la
+question que son lecteur se pose en arrivant, et à elle seule :
+
+| Rôle | La question | Le chiffre mis en avant |
+|---|---|---|
+| Marchand | « Où sont mes colis, et combien me doit-on ? » | Ce que les agences lui doivent |
+| Agence | « Que dois-je livrer aujourd'hui, et combien dois-je rendre ? » | Le cash à reverser |
+| Admin | « Comment va la plateforme ? » | Le volume traité sur 30 jours |
+
+- Les chiffres viennent de trois fonctions SQL (`tableau_de_bord_marchand()`,
+  `tableau_de_bord_agence()`, `tableau_de_bord_admin()`) : c'est la base qui
+  compte, donc les deux parties lisent le même nombre
+- `tableau_de_bord_admin()` refuse de répondre à qui n'est pas administrateur
+- Les alertes en haut d'écran n'apparaissent que s'il y a réellement quelque
+  chose à faire, et cliquer dessus amène sur l'onglet concerné
+- Le parcours des colis est une barre proportionnelle : on voit d'un coup où
+  ils s'accumulent
+- Le journal du bouclier est traduit en français pour l'admin — « Invitation à
+  appeler directement » plutôt que l'expression régulière qui a déclenché
+- Les chiffres sont relus à chaque retour sur l'onglet
+
 ### Comptes et accès
 - Inscription e-commerçant et agence, avec mot de passe
 - Connexion, déconnexion, mot de passe oublié
@@ -158,18 +180,20 @@ relais-app/
 │   ├── connexion.html           connexion et mot de passe oublié
 │   ├── inscription-marchand.html
 │   ├── candidature-agence.html
-│   ├── app.html                 l'application : annuaire, chat, agence, compte, finance, admin
+│   ├── app.html                 l'application : tableau de bord, annuaire, chat, agence, compte, finance, admin
 │   ├── nouveau-mot-de-passe.html    réinitialisation après le lien reçu par e-mail
 │   ├── conditions-generales.html
 │   ├── politique-confidentialite.html
 │   ├── charte-anti-fraude.html
 │   ├── app.js                   toute la logique applicative
 │   ├── style.css                design system de l'application
+│   ├── dashboard.css            mise en page des trois tableaux de bord + en-tête
 │   ├── landing.css              design system des pages publiques
 │   ├── lib/
 │   │   ├── supabaseClient.js    connexion, session, profil, traduction des erreurs
 │   │   ├── inscription.js       logique partagée des deux formulaires
-│   │   └── antiBypassFilter.js  filtre — côté navigateur, AVERTISSEMENT SEUL
+│   │   ├── antiBypassFilter.js  filtre — côté navigateur, AVERTISSEMENT SEUL
+│   │   └── tableauDeBord.js     les trois vues : marchand, agence, admin
 │   └── assets/                  images
 │
 ├── supabase/functions/
@@ -181,6 +205,7 @@ relais-app/
 │   ├── 01_schema.sql            12 tables, 9 types, 14 index
 │   ├── 02_securite.sql          fonctions d'identité, RLS, retrait des privilèges
 │   ├── 03_comptes_et_commandes.sql  création de profil, références, gel des conditions
+│   ├── 04_tableaux_de_bord.sql  les trois fonctions de statistiques
 │   └── README.md                notes de sécurité de la base
 │
 ├── scripts/
@@ -259,12 +284,17 @@ quelqu'un ajoute une policy par erreur plus tard.
 
 | Écran | Marchand | Agence | Admin |
 |---|:---:|:---:|:---:|
+| Tableau de bord | ✅ | ✅ | ✅ |
 | Annuaire des agences | ✅ | ❌ | ✅ |
 | Chat & commandes | ✅ | ✅ | ✅ |
 | Mon agence (KYC) | ❌ | ✅ | ❌ |
 | Mon compte | ✅ | ✅ | ❌ |
 | Point financier | ✅ | ✅ | ✅ |
 | SuperAdmin | ❌ | ❌ | ✅ |
+
+Le tableau de bord est commun aux trois rôles, mais chacun voit une vue
+différente : la fonction SQL appelée dépend du rôle lu en base, pas d'un
+choix côté navigateur.
 
 L'agence n'a **pas** l'annuaire : c'est l'outil du marchand qui cherche un
 prestataire. Une agence n'a pas à y observer ses concurrentes.

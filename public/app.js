@@ -184,6 +184,9 @@ const state = {
   // Agences que ce marchand peut noter (il a des livraisons réussies chez elles)
   notables: [],
 
+  // Chiffres du tableau de bord du rôle connecté
+  chiffres: null,
+
   // Canal d'écoute en direct (Supabase Realtime)
   canalDirect: null,
 
@@ -214,6 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await chargerPointsFinanciers();
   await chargerAbonnement();
   await chargerAgencesNotables();
+  await chargerTableauDeBord();
   await chargerJournalSecurite();
 
   renderAgencies();
@@ -228,6 +232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await renderEspaceAgence();
   renderAbonnement();
   renderMonCompte();
+  renderTableauDeBord();
   renderFinanceView();
   ecouterEnDirect();
 });
@@ -252,6 +257,17 @@ function appliquerProfil(profil) {
     }[profil.role] || profil.role;
   }
   if (bloc) bloc.hidden = false;
+
+  const avatar = document.getElementById('session-avatar');
+  if (avatar) {
+    const source = profil.role === 'merchant' ? (profil.merchant?.store_name || profil.full_name)
+                 : profil.role === 'agency'   ? (profil.agency?.company_name || profil.full_name)
+                 : profil.full_name;
+    // Deux initiales : « Glow Beauty Store » donne GB, pas G
+    avatar.textContent = (source || '?')
+      .split(/\s+/).filter(Boolean).slice(0, 2).map(m => m[0]).join('').toUpperCase();
+    avatar.title = source || '';
+  }
 
   appliquerOngletsAutorises(profil.role);
 
@@ -1465,8 +1481,14 @@ function renderKYCQueue() {
   // Un dossier rejete n'est plus du travail en attente : il ressort si l'agence
   // redepose des pieces, ce qui la remet en pending_verification.
   const pending = state.agencies.filter(a => a.statut === 'pending_verification');
-  document.getElementById('admin-pending-badge').textContent = pending.length;
-  document.getElementById('admin-pending-count').textContent = pending.length;
+  const badgeTitre = document.getElementById('admin-pending-badge');
+  const badgeOnglet = document.getElementById('admin-pending-count');
+  if (badgeTitre) badgeTitre.textContent = pending.length;
+  // Un badge rouge affichant « 0 » alerte pour rien : on le masque.
+  if (badgeOnglet) {
+    badgeOnglet.textContent = pending.length;
+    badgeOnglet.hidden = pending.length === 0;
+  }
 
   if (pending.length === 0) {
     container.innerHTML = `<p style="color: var(--text-dim); font-size: 0.85rem;">Aucun dossier en attente de vérification.</p>`;
@@ -1938,9 +1960,9 @@ function setupTabNavigation() {
  * et son bilan, rien d'autre.
  */
 const ONGLETS_PAR_ROLE = {
-  merchant: ['directory', 'chat', 'finance', 'compte'],
-  agency:   ['chat', 'agence', 'finance', 'compte'],
-  admin:    ['directory', 'chat', 'finance', 'admin']
+  merchant: ['tableau', 'directory', 'chat', 'finance', 'compte'],
+  agency:   ['tableau', 'chat', 'agence', 'finance', 'compte'],
+  admin:    ['tableau', 'directory', 'chat', 'finance', 'admin']
 };
 
 function ongletsAutorises() {
@@ -1966,6 +1988,15 @@ function appliquerOngletsAutorises(role) {
   if (autorises.length) switchTab(autorises[0]);
 }
 
+/**
+ * Les chiffres du tableau de bord vieillissent dès qu'on agit ailleurs :
+ * on les relit en revenant dessus plutôt que d'afficher un état périmé.
+ */
+async function rafraichirTableauDeBord() {
+  await chargerTableauDeBord();
+  renderTableauDeBord();
+}
+
 function switchTab(tabName) {
   // Garde-fou : même appelé depuis la console, un onglet interdit reste fermé
   if (!ongletsAutorises().includes(tabName)) {
@@ -1986,6 +2017,7 @@ function switchTab(tabName) {
   if (tabName === 'chat') renderActiveChat();
   if (tabName === 'agence') renderEspaceAgence();
   if (tabName === 'compte') renderMonCompte();
+  if (tabName === 'tableau') rafraichirTableauDeBord();
   if (tabName === 'admin') renderKYCQueue();
 }
 

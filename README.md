@@ -50,12 +50,14 @@ public/                      Le site (c'est ce que Vercel met en ligne)
   connexion.html             Connexion, mot de passe oublié
   inscription-marchand.html  Inscription e-commerçant
   candidature-agence.html    Candidature agence de livraison
-  app.html                   L'application (annuaire, chat, commandes, finance, admin)
+  app.html                   L'application (tableau de bord, annuaire, chat, commandes, finance, admin)
   app.js                     Logique de l'application
   lib/supabaseClient.js      Connexion à Supabase, session, profil
   lib/inscription.js         Logique partagée des deux formulaires
   lib/antiBypassFilter.js    Filtre — côté navigateur, avertissement seul
+  lib/tableauDeBord.js       Les trois tableaux de bord (marchand, agence, admin)
   style.css / landing.css    Styles
+  dashboard.css              Mise en page des tableaux de bord et de l'en-tête
   assets/                    Images
 
 supabase/functions/          Fonction serveur : le filtre qui fait foi
@@ -97,6 +99,8 @@ sur des données qui n'existent pas encore.
 - [~] **Bloc 8** — Reversement du cash fait ; paiement en ligne à brancher
 - [~] **Bloc 9** — Pages légales, en-têtes de sécurité, tests automatiques faits ;
        domaine et service d'e-mails à faire
+- [x] **Bloc 10** — Tableaux de bord marchand, agence et administrateur
+       (chiffres calculés en base, une vue par rôle)
 
 ### 🔴 Engagement à ne pas oublier : le service d'e-mails
 

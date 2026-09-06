@@ -1,7 +1,7 @@
 const fs = require('fs');
 const src = fs.readFileSync(require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
 
-const ONGLETS = ['directory','chat','agence','finance','compte','admin'];
+const ONGLETS = ['tableau','directory','chat','agence','finance','compte','admin'];
 const boutons = {}, panneaux = {};
 function el(extra={}) {
   return Object.assign({
@@ -33,6 +33,9 @@ global.window = { location:{href:''} };
 const req = { select(){return this;}, eq(){return this;}, order(){return Promise.resolve({data:[],error:null});}, maybeSingle(){return Promise.resolve({data:null,error:null});} };
 global.db = { from(){return req;} };
 global.inspectAndSanitizeMessage = t => ({isBlocked:false,cleanText:t,violations:[]});
+// Le tableau de bord vit dans un module separe, charge par app.html.
+global.chargerTableauDeBord = async () => {};
+global.renderTableauDeBord = () => {};
 global.exigerConnexion = async () => null;
 global.seDeconnecter = () => {};
 
@@ -59,9 +62,9 @@ function verifier(role, attendus) {
   });
 }
 
-verifier('merchant', ['directory','chat','finance','compte']);
-verifier('agency',   ['chat','agence','finance','compte']);
-verifier('admin',    ['directory','chat','finance','admin']);
+verifier('merchant', ['tableau','directory','chat','finance','compte']);
+verifier('agency',   ['tableau','chat','agence','finance','compte']);
+verifier('admin',    ['tableau','directory','chat','finance','admin']);
 
 console.log(ko === 0 ? '\nTOUT EST CONFORME' : `\n${ko} PROBLEME(S)`);
 process.exit(ko === 0 ? 0 : 1);
