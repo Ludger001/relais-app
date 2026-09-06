@@ -21,6 +21,7 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_oe6V2dUMdFgAtMjSBi8-mg_olBmIxPr
 // La librairie est chargée par une balise <script> avant ce fichier.
 // Elle expose un objet global `supabase` qui contient createClient.
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+window.db = db; // atteignable depuis la console : la sécurité ne repose pas sur son secret
 
 /**
  * Renvoie la session en cours, ou null si personne n'est connecté.

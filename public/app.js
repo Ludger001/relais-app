@@ -168,8 +168,10 @@ const state = {
   agencies: [],
   agencesEnErreur: null,
 
-  // Conversations chargées depuis Supabase (Bloc 5)
+  // Conversations chargées depuis Supabase : messages par agence,
+  // et l'identifiant de conversation correspondant
   conversations: {},
+  conversationIds: {},
 
   // Commandes COD chargées depuis Supabase (Bloc 5)
   orders: [],
@@ -177,6 +179,11 @@ const state = {
   // Tentatives de contournement — table security_violations (Bloc 7)
   securityLogs: []
 };
+
+// Exposés volontairement : c'est exactement ce qu'un utilisateur curieux
+// atteint en ouvrant la console. La sécurité ne repose pas sur leur secret,
+// mais sur les privilèges retirés côté base.
+window.state = state;
 
 // 2. INITIALISATION AU CHARGEMENT DU DOM
 document.addEventListener('DOMContentLoaded', async () => {
@@ -188,6 +195,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   appliquerProfil(profil);
 
   await chargerAgences();
+  await chargerConversations();
+  await chargerJournalSecurite();
 
   renderAgencies();
   setupTabNavigation();
@@ -363,54 +372,57 @@ function setupChat() {
   const sendBtn = document.getElementById('btn-send-message');
   const inputField = document.getElementById('chat-input-field');
 
-  function handleSend() {
+  /**
+   * L'envoi passe obligatoirement par la fonction serveur `envoyer-message`.
+   * Le droit d'écrire dans la table `messages` a été retiré au navigateur :
+   * ce que fait ici le filtre local n'est qu'un avertissement anticipé, il
+   * n'a aucun pouvoir de décision.
+   */
+  async function handleSend() {
     const rawText = inputField.value.trim();
     if (!rawText) return;
 
-    // 1. Passage par le filtre anti-contournement Relais
-    const inspection = inspectAndSanitizeMessage(rawText);
-
-    if (inspection.isBlocked) {
-      // Déclencher l'alerte visuelle
-      const toast = document.getElementById('filter-alert-toast');
-      toast.style.display = 'block';
-      setTimeout(() => { toast.style.display = 'none'; }, 6000);
-
-      // Enregistrer l'incident dans les logs admin
-      state.securityLogs.unshift({
-        time: 'À l\'instant',
-        user: state.currentRole === 'merchant' ? 'E-commerçant Actif' : 'Agence Connectée',
-        country: 'Côte d\'Ivoire',
-        pattern: inspection.violations[0] || 'Coordonnées détectées',
-        action: 'Masqué côté serveur & Signalé'
-      });
-      renderSecurityLogs();
+    const conversationId = state.conversationIds[state.selectedAgencyId];
+    if (!conversationId) {
+      alert("Ouvrez d'abord une conversation depuis l'annuaire.");
+      return;
     }
 
-    // 2. Ajouter le message (texte assaini pour distribution)
-    const activeMessages = state.conversations[state.selectedAgencyId] || [];
-    activeMessages.push({
-      id: Date.now(),
-      sender: state.currentRole,
-      time: 'À l\'instant',
-      text: inspection.cleanText,
-      hasViolation: inspection.isBlocked
-    });
+    // Avertissement immédiat, avant même l'aller-retour réseau
+    const apercu = inspectAndSanitizeMessage(rawText);
+    if (apercu.isBlocked) {
+      const toast = document.getElementById('filter-alert-toast');
+      if (toast) {
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 6000);
+      }
+    }
 
-    inputField.value = '';
-    renderActiveChat();
+    inputField.disabled = true;
+    sendBtn.disabled = true;
 
-    // 3. Réponse simulée de l'agence après 1,5 seconde
-    if (state.currentRole === 'merchant') {
-      setTimeout(() => {
-        activeMessages.push({
-          id: Date.now() + 1,
-          sender: 'agency',
-          time: 'À l\'instant',
-          text: 'Bien reçu ! Nous prenons en charge la livraison. Les fonds COD seront comptabilisés dès encaissement chez votre client.'
-        });
-        renderActiveChat();
-      }, 1500);
+    try {
+      const { data, error } = await db.functions.invoke('envoyer-message', {
+        body: { conversation_id: conversationId, content: rawText }
+      });
+
+      if (error) {
+        console.error('[Relais] Envoi refusé :', error);
+        alert("Votre message n'a pas pu être envoyé. Réessayez dans un instant.");
+        return;
+      }
+
+      inputField.value = '';
+      // On relit depuis la base : c'est le texte réellement enregistré,
+      // pas celui que le navigateur croyait envoyer.
+      await chargerMessages(state.selectedAgencyId);
+      renderActiveChat();
+      renderConversationsSidebar();
+
+    } finally {
+      inputField.disabled = false;
+      sendBtn.disabled = false;
+      inputField.focus();
     }
   }
 
@@ -491,21 +503,141 @@ function selectConversation(agencyId) {
   renderFinanceView();
 }
 
-function startChatWithAgency(agencyId) {
+/**
+ * Ouvre — ou crée en base — la conversation avec une agence.
+ * Seul un marchand peut en ouvrir une, et seulement vers une agence certifiée :
+ * c'est la règle RLS conversations_insert_merchant qui l'impose.
+ */
+async function startChatWithAgency(agencyId) {
   state.selectedAgencyId = agencyId;
-  if (!state.conversations[agencyId]) {
-    state.conversations[agencyId] = [
-      {
-        id: Date.now(),
-        sender: 'agency',
-        time: 'À l\'instant',
-        text: 'Bonjour ! Heureux de collaborer avec vous sur Relais. Vous pouvez nous transmettre vos commandes directement ici.'
-      }
-    ];
-  }
   switchTab('chat');
+
+  if (!state.conversationIds[agencyId]) {
+    if (!state.profile?.merchant?.id) {
+      alert("Seul un compte e-commerçant peut ouvrir une conversation avec une agence.");
+      return;
+    }
+
+    const { data, error } = await db
+      .from('conversations')
+      .insert({ merchant_id: state.profile.merchant.id, agency_id: agencyId })
+      .select('id')
+      .single();
+
+    if (error) {
+      // Code 23505 : la conversation existait déjà, on la récupère
+      if (error.code === '23505') {
+        await chargerConversations();
+      } else {
+        console.error('[Relais] Ouverture de conversation impossible :', error.message);
+        alert("La conversation n'a pas pu être ouverte. Réessayez dans un instant.");
+        return;
+      }
+    } else {
+      state.conversationIds[agencyId] = data.id;
+      state.conversations[agencyId] = [];
+    }
+  }
+
+  await chargerMessages(agencyId);
   renderConversationsSidebar();
   renderActiveChat();
+}
+
+/**
+ * Charge les conversations du membre connecté, puis leurs messages.
+ * Les règles RLS ne renvoient que celles auxquelles il participe.
+ */
+async function chargerConversations() {
+  const { data, error } = await db
+    .from('conversations')
+    .select('id, merchant_id, agency_id, last_message_at')
+    .order('last_message_at', { ascending: false });
+
+  if (error) {
+    console.error('[Relais] Conversations indisponibles :', error.message);
+    return;
+  }
+
+  state.conversationIds = {};
+  state.conversations = {};
+
+  for (const conv of data || []) {
+    state.conversationIds[conv.agency_id] = conv.id;
+    state.conversations[conv.agency_id] = [];
+  }
+
+  // Une agence ne voit pas l'annuaire : sans cet ajout, l'interlocuteur de
+  // sa propre conversation serait introuvable dans state.agencies.
+  await completerAgencesDesConversations(Object.keys(state.conversationIds));
+
+  await Promise.all(Object.keys(state.conversationIds).map(chargerMessages));
+
+  // Ouvrir la conversation la plus recente : sans selection, l ecran de chat
+  // affiche son etat vide alors que des echanges existent deja.
+  const premiere = (data || [])[0];
+  if (premiere && !state.selectedAgencyId) {
+    state.selectedAgencyId = premiere.agency_id;
+  }
+}
+
+async function completerAgencesDesConversations(agencyIds) {
+  const manquantes = agencyIds.filter(id => !state.agencies.some(a => a.id === id));
+  if (manquantes.length === 0) return;
+
+  const { data } = await db
+    .from('agencies')
+    .select('id, company_name, legal_registration_number, country, primary_city, covered_areas, base_delivery_fee, cod_payout_frequency, has_warehousing, fleet_size, status, rating_avg, rating_count')
+    .in('id', manquantes);
+
+  for (const a of data || []) {
+    state.agencies.push({
+      id: a.id,
+      name: a.company_name,
+      country: a.country,
+      countryName: PAYS[a.country]?.nom || a.country,
+      flag: PAYS[a.country]?.drapeau || '🏳️',
+      city: a.primary_city,
+      areas: a.covered_areas || [],
+      baseFee: Number(a.base_delivery_fee) || 0,
+      payoutFrequency: a.cod_payout_frequency,
+      payoutText: FREQUENCES_REVERSEMENT[a.cod_payout_frequency] || a.cod_payout_frequency,
+      hasStorage: a.has_warehousing,
+      fleetSize: a.fleet_size,
+      rating: Number(a.rating_avg) || 0,
+      reviewCount: a.rating_count || 0,
+      legalId: a.legal_registration_number || 'Non renseigné',
+      isVerified: a.status === 'verified'
+    });
+  }
+}
+
+/**
+ * Lit les messages via la vue messages_readable : le contenu brut n'y figure
+ * pas, il reste réservé à l'instruction d'un litige.
+ */
+async function chargerMessages(agencyId) {
+  const conversationId = state.conversationIds[agencyId];
+  if (!conversationId) return;
+
+  const { data, error } = await db
+    .from('messages_readable')
+    .select('id, sender_id, filtered_content, has_contact_leak_attempt, created_at')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[Relais] Messages indisponibles :', error.message);
+    return;
+  }
+
+  state.conversations[agencyId] = (data || []).map(m => ({
+    id: m.id,
+    sender: m.sender_id === state.profile.id ? state.currentRole : 'autre',
+    time: formatOrderDate(new Date(m.created_at)),
+    text: m.filtered_content,
+    hasViolation: m.has_contact_leak_attempt
+  }));
 }
 
 function renderActiveChat() {
@@ -880,14 +1012,49 @@ function rejectAgencyKYC(agencyId) {
   alert('Demande de pièces justificatives complémentaires envoyée à l\'agence.');
 }
 
+/**
+ * Journal des tentatives de contournement. La table security_violations n'est
+ * lisible que par un administrateur (policy violations_select_admin), et seule
+ * la fonction serveur y écrit.
+ */
+async function chargerJournalSecurite() {
+  if (state.currentRole !== 'admin') return;
+
+  const { data, error } = await db
+    .from('security_violations')
+    .select('id, detected_pattern, attempted_content, action_taken, created_at, profiles(email, country)')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('[Relais] Journal de sécurité indisponible :', error.message);
+    return;
+  }
+
+  state.securityLogs = (data || []).map(v => ({
+    time: formatOrderDate(new Date(v.created_at)),
+    user: v.profiles?.email || 'Compte supprimé',
+    country: PAYS[v.profiles?.country]?.nom || v.profiles?.country || '—',
+    pattern: v.detected_pattern || 'Coordonnées détectées',
+    action: v.action_taken === 'masked_and_warned' ? 'Masqué et signalé' : v.action_taken,
+    tentative: v.attempted_content
+  }));
+}
+
 function renderSecurityLogs() {
   const feed = document.getElementById('security-logs-feed');
   if (!feed) return;
+
+  if (state.securityLogs.length === 0) {
+    feed.innerHTML = `<p style="color: var(--text-dim); font-size: 0.85rem;">Aucune tentative de contournement enregistrée.</p>`;
+    return;
+  }
 
   feed.innerHTML = state.securityLogs.map(log => `
     <div class="log-entry">
       <div class="log-meta">${log.time} • ${log.country} • ${log.user}</div>
       <div class="log-content">Détection : ${log.pattern} ➔ Action : ${log.action}</div>
+      ${log.tentative ? `<div class="log-content" style="opacity:.7; font-style:italic;">Texte d'origine : « ${log.tentative} »</div>` : ''}
     </div>
   `).join('');
 }

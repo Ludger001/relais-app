@@ -41,7 +41,10 @@ public/                      Le site (c'est ce que Vercel met en ligne)
   lib/inscription.js         Logique partagée des deux formulaires
   connexion.html             Connexion, mot de passe oublié
   style.css / landing.css    Styles
-  lib/antiBypassFilter.js    Filtre anti-désintermédiation
+  lib/antiBypassFilter.js    Filtre anti-désintermédiation (avertissement seul)
+
+supabase/functions/          Fonction serveur : le filtre qui fait foi
+scripts/                     Génération de la copie serveur du filtre
   assets/                    Images
 
 database/                    Schéma SQL réellement appliqué + notes de sécurité
@@ -75,9 +78,9 @@ sur des données qui n'existent pas encore.
 - [x] **Bloc 2** — Réparation des trous métier du prototype
 - [x] **Bloc 3** — Supabase : schéma + règles RLS (voir [database/README.md](database/README.md))
 - [x] **Bloc 4** — Parcours d'inscription réel (compte, connexion, accès protégé)
-- [~] **Bloc 5** — Données réelles : annuaire branché, chat et bilan à suivre
+- [~] **Bloc 5** — Données réelles : annuaire et chat branchés, bilan à suivre
 - [ ] **Bloc 6** — Tableau de bord agence + validation KYC
-- [ ] **Bloc 7** — Filtre anti-désintermédiation côté serveur
+- [x] **Bloc 7** — Filtre anti-désintermédiation côté serveur (remonté avant le Bloc 5)
 - [ ] **Bloc 8** — Paiement réel (FedaPay / Kkiapay) et abonnements
 - [ ] **Bloc 9** — Admin, domaine, mise en production
 
@@ -97,15 +100,31 @@ limité à quelques messages par heure : il bloquait toute inscription.
 Sans ça, n'importe qui peut s'inscrire avec l'adresse e-mail d'un tiers, et
 « mot de passe oublié » ne fonctionne pour personne.
 
+## Le bouclier anti-désintermédiation
+
+C'est le cœur du modèle : si marchand et agence s'échangent leurs numéros, ils
+contournent Relais et le revenu disparaît. La protection tient en trois pièces :
+
+1. **Le navigateur n'a pas le droit d'écrire dans `messages`.** Le privilège INSERT
+   a été retiré au rôle `authenticated`. Aucune ligne ne peut y entrer autrement.
+2. **La fonction serveur `envoyer-message` est le seul chemin.** Elle vérifie le
+   jeton, confirme que l'expéditeur participe bien à la conversation, filtre, puis
+   écrit avec la clé de service.
+3. **Le texte d'origine est illisible pour tous les clients.** `original_content`
+   n'est accessible à personne d'autre qu'un administrateur : il sert uniquement à
+   instruire un litige.
+
+Le filtre du navigateur reste, mais il ne décide de rien : il prévient l'utilisateur
+avant l'aller-retour réseau. `npm test` vérifie que les deux copies portent bien les
+mêmes règles — sinon l'avertissement affiché mentirait.
+
+⚠️ **Après toute modification de `public/lib/antiBypassFilter.js`** : lancer
+`npm run filtre:generer`, puis **redéployer** la fonction `envoyer-message`. Le test
+de synchronisation compare les fichiers du dépôt, il ne voit pas la version déployée.
+
 ## Points d'attention connus
 
-1. **Le filtre anti-désintermédiation tourne dans le navigateur** — donc contournable.
-   C'est le cœur du modèle économique : il devra tourner côté serveur (Bloc 7).
-   Le journal de sécurité affiche « Masqué côté serveur », ce qui est faux aujourd'hui.
-2. **Le filtre détecte les chiffres écrits en toutes lettres mais ne les masque pas.**
-   Le test « numéro en lettres » passe uniquement parce que le mot « contact » est
-   repéré. À reprendre au Bloc 7.
-3. **Le paiement de l'abonnement n'existe pas.** L'inscription crée un compte, sans
+1. **Le paiement de l'abonnement n'existe pas.** L'inscription crée un compte, sans
    aucun prélèvement. Bloc 8.
 4. **Une agence dépose son dossier mais ne peut pas encore envoyer ses pièces KYC.**
    Elle reste donc invisible dans l'annuaire jusqu'à validation manuelle. Bloc 6.

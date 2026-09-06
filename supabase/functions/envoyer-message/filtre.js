@@ -1,3 +1,9 @@
+// ===========================================================================
+// FICHIER GÉNÉRÉ — NE PAS MODIFIER À LA MAIN
+// Source : public/lib/antiBypassFilter.js
+// Régénérer avec : npm run filtre:generer
+// ===========================================================================
+
 /**
  * =============================================================================
  * SAAS RELAIS — MOTEUR DE DÉTECTION & BOUCLIER ANTI-DÉSINTERMÉDIATION
@@ -195,9 +201,4 @@ function inspectAndSanitizeMessage(messageText) {
   };
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    inspectAndSanitizeMessage,
-    normalizeText
-  };
-}
+export { inspectAndSanitizeMessage, normalizeText };
