@@ -9,7 +9,8 @@
     "test:responsive": "node tests/testResponsive.js",
     "test:chat": "node tests/testChatServeur.js",
     "filtre:generer": "node scripts/genererFiltreServeur.js",
-    "test:commande": "node tests/testCycleCommande.js"
+    "test:commande": "node tests/testCycleCommande.js",
+    "test:kyc": "node tests/testCertificationKYC.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

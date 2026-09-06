@@ -61,6 +61,11 @@
         Chat Exclusif & Commandes
         <span class="tab-badge" id="chat-badge-count">1</span>
       </button>
+      <button class="tab-item" data-tab="agence" id="tab-btn-agence">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M9 22V12h6v10"></path></svg>
+        Mon Agence
+        <span class="tab-badge alert" id="agence-alerte-badge" hidden>!</span>
+      </button>
       <button class="tab-item" data-tab="finance" id="tab-btn-finance">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 6v2"></path><path d="M12 16v2"></path></svg>
         Point Financier COD
@@ -338,11 +343,49 @@
     </section>
 
     <!-- VUE 4 : SUPERADMIN (LUDGER) -->
+    <!-- VUE 5 : ESPACE DE L'AGENCE (certification et pièces justificatives) -->
+    <section class="tab-panel" id="view-agence">
+      <div class="panel-header-bar">
+        <div>
+          <h2 class="panel-title">Mon Agence</h2>
+          <p class="panel-subtitle">Votre certification, vos coordonnées et vos pièces justificatives.</p>
+        </div>
+      </div>
+
+      <div class="certification-card" id="carte-certification">
+        <div class="certification-etat" id="certification-etat">Chargement…</div>
+        <p class="certification-explication" id="certification-explication"></p>
+      </div>
+
+      <div class="admin-card" style="margin-top: 1.5rem;">
+        <div class="admin-card-header">
+          <h3>Pièces justificatives</h3>
+        </div>
+
+        <p class="form-hint" style="padding: 0 1.1rem;">
+          Deux documents sont attendus : votre <strong>extrait RCCM / NINEA / IFU</strong> et la
+          <strong>pièce d'identité du gérant</strong>. Formats acceptés : PDF, JPG, PNG — 5 Mo maximum.
+          Ils ne sont visibles que par vous et par l'équipe de vérification Relais.
+        </p>
+
+        <div style="padding: 0 1.1rem 1.1rem;">
+          <input type="file" id="kyc-fichier" class="form-input"
+                 accept="application/pdf,image/jpeg,image/png,image/webp">
+          <div id="kyc-retour" class="form-feedback" hidden></div>
+          <button type="button" class="btn btn-primary" id="btn-kyc-envoyer" style="margin-top: .75rem;">
+            Déposer ce document
+          </button>
+        </div>
+
+        <div class="kyc-queue-list" id="kyc-mes-pieces"></div>
+      </div>
+    </section>
+
     <section class="tab-panel" id="view-admin">
       <div class="panel-header-bar">
         <div>
           <h2 class="panel-title">Centre de Contrôle SuperAdmin</h2>
-          <p class="panel-subtitle">Validation des dossiers KYC en 15 min & monitoring des tentatives de fuite de numéros.</p>
+          <p class="panel-subtitle">Validation des dossiers KYC & monitoring des tentatives de contournement.</p>
         </div>
       </div>
 

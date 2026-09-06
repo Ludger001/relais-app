@@ -101,7 +101,7 @@ const FREQUENCES_REVERSEMENT = {
 async function chargerAgences() {
   const { data, error } = await db
     .from('agencies')
-    .select('id, company_name, legal_registration_number, country, primary_city, covered_areas, base_delivery_fee, cod_payout_frequency, has_warehousing, fleet_size, status, rating_avg, rating_count')
+    .select('id, profile_id, company_name, legal_registration_number, country, primary_city, covered_areas, base_delivery_fee, cod_payout_frequency, has_warehousing, fleet_size, status, rating_avg, rating_count')
     .order('rating_avg', { ascending: false });
 
   if (error) {
@@ -114,6 +114,7 @@ async function chargerAgences() {
   state.agencesEnErreur = null;
   state.agencies = (data || []).map(a => ({
     id: a.id,
+    profileId: a.profile_id,
     name: a.company_name,
     country: a.country,
     countryName: PAYS[a.country]?.nom || a.country,
@@ -128,6 +129,7 @@ async function chargerAgences() {
     rating: Number(a.rating_avg) || 0,
     reviewCount: a.rating_count || 0,
     legalId: a.legal_registration_number || 'Non renseigné',
+    statut: a.status,
     isVerified: a.status === 'verified'
   }));
 
@@ -205,7 +207,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupChat();
   setupOrdersAndFinance();
   setupAdminPanel();
+  setupDepotKYC();
   setupModals();
+  await renderEspaceAgence();
   renderFinanceView();
 });
 
@@ -647,12 +651,13 @@ async function completerAgencesDesConversations(agencyIds) {
 
   const { data } = await db
     .from('agencies')
-    .select('id, company_name, legal_registration_number, country, primary_city, covered_areas, base_delivery_fee, cod_payout_frequency, has_warehousing, fleet_size, status, rating_avg, rating_count')
+    .select('id, profile_id, company_name, legal_registration_number, country, primary_city, covered_areas, base_delivery_fee, cod_payout_frequency, has_warehousing, fleet_size, status, rating_avg, rating_count')
     .in('id', manquantes);
 
   for (const a of data || []) {
     state.agencies.push({
       id: a.id,
+      profileId: a.profile_id,
       name: a.company_name,
       country: a.country,
       countryName: PAYS[a.country]?.nom || a.country,
@@ -667,7 +672,8 @@ async function completerAgencesDesConversations(agencyIds) {
       rating: Number(a.rating_avg) || 0,
       reviewCount: a.rating_count || 0,
       legalId: a.legal_registration_number || 'Non renseigné',
-      isVerified: a.status === 'verified'
+      statut: a.status,
+    isVerified: a.status === 'verified'
     });
   }
 }
@@ -1088,7 +1094,9 @@ function renderKYCQueue() {
   const container = document.getElementById('kyc-queue-list');
   if (!container) return;
 
-  const pending = state.agencies.filter(a => !a.isVerified);
+  // Un dossier rejete n'est plus du travail en attente : il ressort si l'agence
+  // redepose des pieces, ce qui la remet en pending_verification.
+  const pending = state.agencies.filter(a => a.statut === 'pending_verification');
   document.getElementById('admin-pending-badge').textContent = pending.length;
   document.getElementById('admin-pending-count').textContent = pending.length;
 
@@ -1106,36 +1114,298 @@ function renderKYCQueue() {
       <div style="font-size: 0.78rem; color: var(--text-muted);">
         Identifiant fiscal déclaré : <strong>${agency.legalId}</strong> • Flotte : ${agency.fleetSize} livreurs
       </div>
-      <div class="kyc-docs-list">
-        <span>📄 Registre RCCM/NINEA vérifié</span>
-        <span>📸 Photos du local inspectées</span>
+      <div class="kyc-docs-list" id="kyc-docs-${agency.id}">
+        <span style="opacity:.7">Chargement des pièces…</span>
       </div>
       <div class="kyc-actions">
         <button class="btn btn-primary-sm" onclick="approveAgencyKYC('${agency.id}')">
-          ✅ Valider & Certifier l'Agence
+          ✅ Valider &amp; Certifier l'Agence
         </button>
         <button class="btn btn-secondary-sm" onclick="rejectAgencyKYC('${agency.id}')">
-          ❌ Demander Complément
+          ❌ Rejeter le dossier
         </button>
       </div>
     </div>
   `).join('');
+
+  // Les pièces se chargent après coup : elles demandent un aller-retour au dépôt
+  pending.forEach(agency => chargerPiecesDuDossier(agency));
 }
 
-function approveAgencyKYC(agencyId) {
-  const agency = state.agencies.find(a => a.id === agencyId);
-  if (agency) {
-    agency.isVerified = true;
-    agency.rating = 5.0;
-    agency.reviewCount = 1;
-    alert(`L'agence ${agency.name} est désormais certifiée et visible dans l'annuaire des 5 pays.`);
-    renderKYCQueue();
-    renderAgencies();
+/**
+ * Les documents d'une agence, vus par l'administrateur.
+ *
+ * Le dépôt est privé : on ne construit pas d'URL permanente, on demande un
+ * lien signé valable deux minutes au moment où l'admin clique.
+ */
+async function chargerPiecesDuDossier(agency) {
+  const cible = document.getElementById(`kyc-docs-${agency.id}`);
+  if (!cible) return;
+
+  // Le chemin de dépôt est indexé sur le compte d'authentification de l'agence
+  const { data: profil } = await db
+    .from('profiles')
+    .select('auth_user_id')
+    .eq('id', agency.profileId)
+    .maybeSingle();
+
+  if (!profil?.auth_user_id) {
+    cible.innerHTML = `<span style="color: var(--danger)">Profil introuvable.</span>`;
+    return;
   }
+
+  const { data: fichiers, error } = await db.storage
+    .from('pieces-kyc')
+    .list(profil.auth_user_id, { limit: 50 });
+
+  if (error) {
+    cible.innerHTML = `<span style="color: var(--danger)">Pièces illisibles : ${error.message}</span>`;
+    return;
+  }
+
+  if (!fichiers || fichiers.length === 0) {
+    cible.innerHTML = `
+      <span style="color: var(--warning); font-weight: 600;">
+        ⚠️ Aucune pièce déposée — ne certifiez pas ce dossier en l'état.
+      </span>`;
+    return;
+  }
+
+  cible.innerHTML = fichiers.map(f => `
+    <button class="btn btn-outline-sm" data-doc-agence="${profil.auth_user_id}" data-doc-nom="${f.name}">
+      📄 ${f.name.replace(/^\d+-/, '')} (${Math.round((f.metadata?.size || 0) / 1024)} Ko)
+    </button>
+  `).join('');
+
+  cible.querySelectorAll('[data-doc-nom]').forEach(b =>
+    b.addEventListener('click', () => ouvrirPiece(b.dataset.docAgence, b.dataset.docNom)));
 }
 
-function rejectAgencyKYC(agencyId) {
-  alert('Demande de pièces justificatives complémentaires envoyée à l\'agence.');
+/**
+ * La certification est le geste le plus lourd de conséquence de Relais :
+ * elle rend une agence visible auprès de tous les marchands. Seul un
+ * administrateur peut la poser — le trigger protect_agency_verification
+ * refuse toute autre origine.
+ */
+async function approveAgencyKYC(agencyId) {
+  const agency = state.agencies.find(a => a.id === agencyId);
+  if (!agency) return;
+
+  if (!confirm(
+    `Certifier « ${agency.name} » ?\n\n` +
+    `Elle deviendra immédiatement visible dans l'annuaire de tous les e-commerçants ` +
+    `des 5 pays, et pourra recevoir des commandes.`
+  )) return;
+
+  const { error } = await db
+    .from('agencies')
+    .update({
+      status: 'verified',
+      verified_at: new Date().toISOString(),
+      verified_by: state.profile.id
+    })
+    .eq('id', agencyId);
+
+  if (error) {
+    console.error('[Relais] Certification refusée :', error.message);
+    alert("La certification n'a pas pu être enregistrée : " + error.message);
+    return;
+  }
+
+  await chargerAgences();
+  renderKYCQueue();
+  renderAgencies();
+}
+
+async function rejectAgencyKYC(agencyId) {
+  const agency = state.agencies.find(a => a.id === agencyId);
+  if (!agency) return;
+
+  if (!confirm(
+    `Rejeter le dossier de « ${agency.name} » ?\n\n` +
+    `Elle restera invisible dans l'annuaire et devra redéposer ses pièces.`
+  )) return;
+
+  const { error } = await db
+    .from('agencies')
+    .update({ status: 'rejected', verified_by: state.profile.id })
+    .eq('id', agencyId);
+
+  if (error) {
+    alert("Le rejet n'a pas pu être enregistré : " + error.message);
+    return;
+  }
+
+  await chargerAgences();
+  renderKYCQueue();
+  renderAgencies();
+}
+
+// =============================================================================
+// ESPACE DE L'AGENCE — CERTIFICATION ET PIÈCES JUSTIFICATIVES
+// =============================================================================
+
+const ETATS_CERTIFICATION = {
+  pending_verification: {
+    libelle: '🟡 Dossier en attente de vérification',
+    explication: "Votre agence n'apparaît pas encore dans l'annuaire des e-commerçants. " +
+                 "Déposez vos pièces justificatives ci-dessous : l'équipe Relais les examine " +
+                 "et vous certifie manuellement.",
+    alerte: true
+  },
+  verified: {
+    libelle: '🟢 Agence certifiée Relais',
+    explication: "Vous êtes visible dans l'annuaire des e-commerçants des 5 pays et pouvez " +
+                 "recevoir des commandes.",
+    alerte: false
+  },
+  rejected: {
+    libelle: '🔴 Dossier refusé',
+    explication: "Vos pièces n'ont pas permis de vous certifier. Déposez des documents " +
+                 "lisibles et à jour, puis contactez le support.",
+    alerte: true
+  },
+  suspended: {
+    libelle: '⛔ Compte suspendu',
+    explication: "Votre agence a été retirée de l'annuaire. Contactez le support Relais.",
+    alerte: true
+  }
+};
+
+async function renderEspaceAgence() {
+  if (state.currentRole !== 'agency') return;
+
+  const fiche = state.profile?.agency;
+  const etat = ETATS_CERTIFICATION[fiche?.status] || ETATS_CERTIFICATION.pending_verification;
+
+  const bloc = document.getElementById('certification-etat');
+  const texte = document.getElementById('certification-explication');
+  const carte = document.getElementById('carte-certification');
+  const badge = document.getElementById('agence-alerte-badge');
+
+  if (bloc) bloc.textContent = etat.libelle;
+  if (texte) texte.textContent = etat.explication;
+  if (carte) carte.className = `certification-card ${etat.alerte ? 'en-attente' : 'certifiee'}`;
+  if (badge) badge.hidden = !etat.alerte;
+
+  await renderMesPieces();
+}
+
+/**
+ * Les pièces déposées. Le dépôt n'est pas public : on génère un lien
+ * temporaire à chaque affichage plutôt qu'une URL permanente.
+ */
+async function renderMesPieces() {
+  const liste = document.getElementById('kyc-mes-pieces');
+  if (!liste) return;
+
+  const dossier = (await getSession())?.user?.id;
+  if (!dossier) return;
+
+  const { data, error } = await db.storage.from('pieces-kyc').list(dossier, { limit: 50 });
+
+  if (error) {
+    liste.innerHTML = `<p style="padding:1.1rem; color: var(--text-dim); font-size:.85rem;">Impossible de lister vos pièces : ${error.message}</p>`;
+    return;
+  }
+  if (!data || data.length === 0) {
+    liste.innerHTML = `<p style="padding:1.1rem; color: var(--text-dim); font-size:.85rem;">Aucune pièce déposée pour l'instant.</p>`;
+    return;
+  }
+
+  const modifiable = state.profile?.agency?.status !== 'verified';
+
+  liste.innerHTML = data.map(f => `
+    <div class="kyc-item">
+      <div class="kyc-header">
+        <span class="kyc-name">📄 ${f.name.replace(/^\d+-/, '')}</span>
+        <span class="kyc-country">${Math.round((f.metadata?.size || 0) / 1024)} Ko</span>
+      </div>
+      <div class="btn-row" style="margin-top:.6rem; display:flex; gap:.5rem; flex-wrap:wrap;">
+        <button class="btn btn-outline-sm" data-piece-voir="${f.name}">Consulter</button>
+        ${modifiable ? `<button class="btn-status-action btn-status-ko" data-piece-suppr="${f.name}">Retirer</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  liste.querySelectorAll('[data-piece-voir]').forEach(b =>
+    b.addEventListener('click', () => ouvrirPiece(dossier, b.dataset.pieceVoir)));
+  liste.querySelectorAll('[data-piece-suppr]').forEach(b =>
+    b.addEventListener('click', () => retirerPiece(dossier, b.dataset.pieceSuppr)));
+}
+
+async function ouvrirPiece(dossier, nom) {
+  const { data, error } = await db.storage
+    .from('pieces-kyc')
+    .createSignedUrl(`${dossier}/${nom}`, 120); // lien valable 2 minutes
+
+  if (error) {
+    alert("Ce document n'a pas pu être ouvert : " + error.message);
+    return;
+  }
+  window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+async function retirerPiece(dossier, nom) {
+  if (!confirm('Retirer ce document de votre dossier ?')) return;
+
+  const { error } = await db.storage.from('pieces-kyc').remove([`${dossier}/${nom}`]);
+  if (error) {
+    alert("Le document n'a pas pu être retiré : " + error.message);
+    return;
+  }
+  await renderMesPieces();
+}
+
+function setupDepotKYC() {
+  const bouton = document.getElementById('btn-kyc-envoyer');
+  const champ = document.getElementById('kyc-fichier');
+  const retour = document.getElementById('kyc-retour');
+  if (!bouton || !champ) return;
+
+  const afficher = (message, type) => {
+    if (!retour) return;
+    retour.hidden = false;
+    retour.className = `form-feedback form-feedback-${type}`;
+    retour.innerHTML = message;
+  };
+
+  bouton.addEventListener('click', async () => {
+    const fichier = champ.files?.[0];
+    if (!fichier) {
+      afficher('Choisissez d\'abord un document.', 'erreur');
+      return;
+    }
+    if (fichier.size > 5 * 1024 * 1024) {
+      afficher('Ce document dépasse 5 Mo. Réduisez-le ou scannez-le en qualité moindre.', 'erreur');
+      return;
+    }
+
+    const session = await getSession();
+    if (!session) return;
+
+    bouton.disabled = true;
+    bouton.textContent = 'Dépôt en cours…';
+
+    // Le nom est horodaté : deux dépôts du même fichier ne s'écrasent pas
+    const nomSur = `${Date.now()}-${fichier.name.replace(/[^\w.\-]/g, '_')}`;
+    const { error } = await db.storage
+      .from('pieces-kyc')
+      .upload(`${session.user.id}/${nomSur}`, fichier, { contentType: fichier.type });
+
+    bouton.disabled = false;
+    bouton.textContent = 'Déposer ce document';
+
+    if (error) {
+      console.error('[Relais] Dépôt refusé :', error.message);
+      afficher('Le dépôt a échoué : ' + error.message, 'erreur');
+      return;
+    }
+
+    champ.value = '';
+    afficher('Document déposé. Il sera examiné par l\'équipe Relais.', 'succes');
+    await renderMesPieces();
+  });
 }
 
 /**
@@ -1208,7 +1478,7 @@ function setupTabNavigation() {
  */
 const ONGLETS_PAR_ROLE = {
   merchant: ['directory', 'chat', 'finance'],
-  agency:   ['chat', 'finance'],
+  agency:   ['chat', 'agence', 'finance'],
   admin:    ['directory', 'chat', 'finance', 'admin']
 };
 
@@ -1253,6 +1523,8 @@ function switchTab(tabName) {
 
   if (tabName === 'finance') renderFinanceView();
   if (tabName === 'chat') renderActiveChat();
+  if (tabName === 'agence') renderEspaceAgence();
+  if (tabName === 'admin') renderKYCQueue();
 }
 
 
