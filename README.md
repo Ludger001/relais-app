@@ -8,11 +8,14 @@ collecté, et bouclier anti-désintermédiation.
 
 ---
 
-## État actuel : prototype front-end
+## État actuel
 
-⚠️ **Rien n'est encore connecté à une vraie base de données.** L'interface fonctionne avec
-des données simulées écrites en dur dans `public/app.js`. Le paiement est simulé. Il n'y a
-pas encore de comptes utilisateurs — le sélecteur de rôle en haut fait semblant.
+**Ce qui est réel :** les comptes, la connexion, les rôles, et l'annuaire des agences.
+L'application est fermée aux visiteurs et le rôle vient du profil en base, plus d'un
+bouton. Les règles de sécurité sont écrites et testées.
+
+**Ce qui ne l'est pas encore :** le chat, les commandes et le bilan financier sont vides
+en attendant d'être branchés. Le paiement de l'abonnement est simulé.
 
 La logique métier, elle, est juste : le bon de commande transmet les coordonnées du client
 à l'agence, l'agence clôture ses livraisons, et le bilan se calcule sur la période choisie.
@@ -33,7 +36,10 @@ public/                      Le site (c'est ce que Vercel met en ligne)
   app.html                   L'application (annuaire, chat, commandes, finance, admin)
   inscription-marchand.html  Inscription e-commerçant
   candidature-agence.html    Candidature agence de livraison
-  app.js                     Toute la logique + les données simulées
+  app.js                     Logique de l'application
+  lib/supabaseClient.js      Connexion à Supabase, session, profil
+  lib/inscription.js         Logique partagée des deux formulaires
+  connexion.html             Connexion, mot de passe oublié
   style.css / landing.css    Styles
   lib/antiBypassFilter.js    Filtre anti-désintermédiation
   assets/                    Images
@@ -99,9 +105,10 @@ Sans ça, n'importe qui peut s'inscrire avec l'adresse e-mail d'un tiers, et
 2. **Le filtre détecte les chiffres écrits en toutes lettres mais ne les masque pas.**
    Le test « numéro en lettres » passe uniquement parce que le mot « contact » est
    repéré. À reprendre au Bloc 7.
-3. **Aucun des deux formulaires d'inscription ne demande de mot de passe** — impossible
-   de se reconnecter. À traiter au Bloc 4.
-4. **Le paiement de l'abonnement est factice** (`setTimeout` + `alert`). Bloc 8.
+3. **Le paiement de l'abonnement n'existe pas.** L'inscription crée un compte, sans
+   aucun prélèvement. Bloc 8.
+4. **Une agence dépose son dossier mais ne peut pas encore envoyer ses pièces KYC.**
+   Elle reste donc invisible dans l'annuaire jusqu'à validation manuelle. Bloc 6.
 5. **L'annuaire lit la vraie base ; le chat, les commandes et le bilan sont encore
    vides.** Envoyer un message est volontairement impossible tant que le filtre ne
    tourne pas côté serveur (Bloc 7) : le privilège d'écriture sur `messages` est retiré.
