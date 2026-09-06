@@ -101,6 +101,8 @@ sur des données qui n'existent pas encore.
        domaine et service d'e-mails à faire
 - [x] **Bloc 10** — Tableaux de bord marchand, agence et administrateur
        (chiffres calculés en base, une vue par rôle)
+- [x] **Bloc 11** — Échappement de tout contenu écrit par un membre
+       (faille d'injection fermée, test de non-régression)
 
 ### 🔴 Engagement à ne pas oublier : le service d'e-mails
 
@@ -149,6 +151,9 @@ de synchronisation compare les fichiers du dépôt, il ne voit pas la version d�
    être validées avant l'ouverture commerciale.
 3. **Aucun suivi des erreurs en production.** Si l'application casse chez un
    membre, personne ne le saura. C'est le manque le plus important qui reste.
+3bis. **Protection contre les mots de passe déjà fuités : désactivée.** Supabase
+   sait refuser un mot de passe présent dans les fuites connues (HaveIBeenPwned).
+   À activer dans Authentication → Policies. C'est un interrupteur, pas du code.
 4. **Suppression de compte impossible en l'état** — voir [database/README.md](database/README.md).
-5. **Comptes de démonstration à supprimer avant l'ouverture** : `marchand@demo.relais`
-   et `agence@demo.relais`.
+5. **Comptes de démonstration à supprimer avant l'ouverture** : `marchand@demo.relais`,
+   `agence@demo.relais` et `admin@demo.relais`.

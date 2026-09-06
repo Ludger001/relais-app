@@ -356,19 +356,19 @@ function renderAgencies() {
           <span class="verified-tag">✔ Vérifiée Relais</span>
         </div>
         
-        <h3 class="agency-name">${agency.name}</h3>
-        <div class="agency-location">📍 ${agency.city}, ${agency.countryName}</div>
+        <h3 class="agency-name">${echapperHtml(agency.name)}</h3>
+        <div class="agency-location">📍 ${echapperHtml(agency.city)}, ${echapperHtml(agency.countryName)}</div>
 
         <div class="agency-stats-pills">
           <span class="stat-pill">⭐ <strong>${agency.rating}</strong> (${agency.reviewCount} avis)</span>
-          <span class="stat-pill">⏱ Reversement : <strong>${agency.payoutText}</strong></span>
+          <span class="stat-pill">⏱ Reversement : <strong>${echapperHtml(agency.payoutText)}</strong></span>
           <span class="stat-pill">🛵 Flotte : <strong>${agency.fleetSize} livreurs</strong></span>
         </div>
 
         <ul class="agency-features-list">
-          <li>Zones : ${agency.areas.slice(0, 3).join(', ')}...</li>
+          <li>Zones : ${echapperHtml(agency.areas.slice(0, 3).join(', '))}...</li>
           <li>Entreposage sécurisé : ${agency.hasStorage ? 'Oui (Stock tampon disponible)' : 'Non'}</li>
-          <li>Enregistrement : ${agency.legalId}</li>
+          <li>Enregistrement : ${echapperHtml(agency.legalId)}</li>
         </ul>
       </div>
 
@@ -526,10 +526,10 @@ function renderConversationsSidebar() {
         <div class="conv-avatar">${agency.flag}</div>
         <div class="conv-info">
           <div class="conv-name-row">
-            <span class="conv-name">${agency.name}</span>
+            <span class="conv-name">${echapperHtml(agency.name)}</span>
             <span class="conv-time">10:18</span>
           </div>
-          <div class="conv-last-msg">${lastMsg}</div>
+          <div class="conv-last-msg">${echapperHtml(lastMsg)}</div>
         </div>
       </div>
     `;
@@ -818,7 +818,7 @@ function renderActiveChat() {
     return `
       <div class="message-bubble-wrap ${isSent ? 'sent' : 'received'}">
         <div class="bubble ${m.hasViolation ? 'violation' : ''}">
-          ${m.text}
+          ${echapperHtml(m.text)}
         </div>
         <span class="msg-time">${m.time}</span>
       </div>
@@ -850,8 +850,8 @@ function renderOrdersStrip() {
   container.innerHTML = agencyOrders.map(order => `
     <div class="mini-order-card">
       <div>
-        <div class="mini-order-code">${order.id}</div>
-        <div class="mini-order-prod">${order.productName} • ${order.recipientCity}</div>
+        <div class="mini-order-code">${echapperHtml(order.id)}</div>
+        <div class="mini-order-prod">${echapperHtml(order.productName)} • ${echapperHtml(order.recipientCity)}</div>
       </div>
       <div style="text-align: right;">
         <span class="order-badge ${order.status}">${formatStatus(order.status)}</span>
@@ -876,8 +876,8 @@ function carteCommande(order) {
   return `
     <div class="message-bubble-wrap order-card-wrap">
       <div class="bubble order-card-bubble">
-        <div class="order-card-title">📦 Ordre de livraison COD — ${order.id}</div>
-        <div class="order-card-line">${order.productName} <span style="opacity:.7">× ${order.qty}</span></div>
+        <div class="order-card-title">📦 Ordre de livraison COD — ${echapperHtml(order.id)}</div>
+        <div class="order-card-line">${echapperHtml(order.productName)} <span style="opacity:.7">× ${echapperHtml(order.qty)}</span></div>
         <div class="order-card-line">
           Cash à encaisser : <strong>${order.codAmount.toLocaleString()} FCFA</strong>
           &nbsp;·&nbsp; Frais agence : ${order.deliveryFee.toLocaleString()} FCFA
@@ -886,9 +886,9 @@ function carteCommande(order) {
 
         <div class="order-card-recipient">
           <div class="order-card-subtitle">Destinataire</div>
-          <div>${order.recipientName}</div>
-          <div>📞 <strong>${order.recipientPhone}</strong></div>
-          <div>📍 ${order.recipientAddress}, ${order.recipientCity}</div>
+          <div>${echapperHtml(order.recipientName)}</div>
+          <div>📞 <strong>${echapperHtml(order.recipientPhone)}</strong></div>
+          <div>📍 ${echapperHtml(order.recipientAddress)}, ${echapperHtml(order.recipientCity)}</div>
           <div class="order-card-note">Coordonnées transmises par Relais pour cette livraison uniquement.</div>
         </div>
 
@@ -1315,8 +1315,8 @@ function renderFinanceView() {
   const agencySelect = document.getElementById('finance-agency-select');
   if (agencySelect && agencySelect.children.length === 0) {
     agencySelect.innerHTML = state.agencies.filter(a => a.isVerified).map(a => `
-      <option value="${a.id}" ${a.id === state.selectedAgencyId ? 'selected' : ''}>
-        ${a.flag} ${a.name} (${a.city})
+      <option value="${echapperHtml(a.id)}" ${a.id === state.selectedAgencyId ? 'selected' : ''}>
+        ${a.flag} ${echapperHtml(a.name)} (${echapperHtml(a.city)})
       </option>
     `).join('');
 
@@ -1402,16 +1402,16 @@ function renderFinanceView() {
 
     // Seule l'agence clôture une livraison : c'est elle qui a le colis et encaisse le cash
     const actions = isAgency && enCours
-      ? `<button class="btn-status-action btn-status-ok" data-order="${order.id}" data-next="delivered">✅ Livré &amp; encaissé</button>
-         <button class="btn-status-action btn-status-ko" data-order="${order.id}" data-next="failed">✖ Échec</button>`
+      ? `<button class="btn-status-action btn-status-ok" data-order="${echapperHtml(order.id)}" data-next="delivered">✅ Livré &amp; encaissé</button>
+         <button class="btn-status-action btn-status-ko" data-order="${echapperHtml(order.id)}" data-next="failed">✖ Échec</button>`
       : `<span style="opacity:.5">—</span>`;
 
     return `
       <tr>
-        <td><strong>${order.id}</strong><br><span style="opacity:.6; font-size:.75rem;">${formatOrderDate(order.createdAt)}</span></td>
-        <td>${order.productName}</td>
-        <td>${order.recipientName}<br><span style="opacity:.6; font-size:.75rem;">${order.recipientPhone || '—'}</span></td>
-        <td>${order.recipientCity}</td>
+        <td><strong>${echapperHtml(order.id)}</strong><br><span style="opacity:.6; font-size:.75rem;">${formatOrderDate(order.createdAt)}</span></td>
+        <td>${echapperHtml(order.productName)}</td>
+        <td>${echapperHtml(order.recipientName)}<br><span style="opacity:.6; font-size:.75rem;">${echapperHtml(order.recipientPhone || '—')}</span></td>
+        <td>${echapperHtml(order.recipientCity)}</td>
         <td style="color: #fff; font-weight: 600;">${order.codAmount.toLocaleString()} F</td>
         <td style="color: var(--warning);">${order.deliveryFee.toLocaleString()} F</td>
         <td style="color: var(--primary); font-weight: 700;">${net.toLocaleString()} F</td>
@@ -1498,11 +1498,11 @@ function renderKYCQueue() {
   container.innerHTML = pending.map(agency => `
     <div class="kyc-item">
       <div class="kyc-header">
-        <span class="kyc-name">${agency.flag} ${agency.name}</span>
-        <span class="kyc-country">${agency.city}, ${agency.countryName}</span>
+        <span class="kyc-name">${agency.flag} ${echapperHtml(agency.name)}</span>
+        <span class="kyc-country">${echapperHtml(agency.city)}, ${echapperHtml(agency.countryName)}</span>
       </div>
       <div style="font-size: 0.78rem; color: var(--text-muted);">
-        Identifiant fiscal déclaré : <strong>${agency.legalId}</strong> • Flotte : ${agency.fleetSize} livreurs
+        Identifiant fiscal déclaré : <strong>${echapperHtml(agency.legalId)}</strong> • Flotte : ${echapperHtml(agency.fleetSize)} livreurs
       </div>
       <div class="kyc-docs-list" id="kyc-docs-${agency.id}">
         <span style="opacity:.7">Chargement des pièces…</span>
@@ -1562,8 +1562,8 @@ async function chargerPiecesDuDossier(agency) {
   }
 
   cible.innerHTML = fichiers.map(f => `
-    <button class="btn btn-outline-sm" data-doc-agence="${profil.auth_user_id}" data-doc-nom="${f.name}">
-      📄 ${f.name.replace(/^\d+-/, '')} (${Math.round((f.metadata?.size || 0) / 1024)} Ko)
+    <button class="btn btn-outline-sm" data-doc-agence="${echapperHtml(profil.auth_user_id)}" data-doc-nom="${echapperHtml(f.name)}">
+      📄 ${echapperHtml(f.name.replace(/^\d+-/, ''))} (${Math.round((f.metadata?.size || 0) / 1024)} Ko)
     </button>
   `).join('');
 
@@ -1673,8 +1673,10 @@ function renderMonCompte() {
   const p = state.profile;
   if (!infos || !p) return;
 
+  // Tout ce qui s'affiche ici a ete saisi par le membre : on echappe au
+  // seul endroit ou ces valeurs deviennent du HTML.
   const ligne = (cle, valeur) =>
-    `<div class="paire-compte"><dt>${cle}</dt><dd>${valeur ?? '—'}</dd></div>`;
+    `<div class="paire-compte"><dt>${cle}</dt><dd>${echapperHtml(valeur ?? '—')}</dd></div>`;
 
   const roles = { merchant: 'E-commerçant', agency: 'Agence de livraison', admin: 'Administrateur' };
 
@@ -1801,12 +1803,12 @@ async function renderMesPieces() {
   liste.innerHTML = data.map(f => `
     <div class="kyc-item">
       <div class="kyc-header">
-        <span class="kyc-name">📄 ${f.name.replace(/^\d+-/, '')}</span>
+        <span class="kyc-name">📄 ${echapperHtml(f.name.replace(/^\d+-/, ''))}</span>
         <span class="kyc-country">${Math.round((f.metadata?.size || 0) / 1024)} Ko</span>
       </div>
       <div class="btn-row" style="margin-top:.6rem; display:flex; gap:.5rem; flex-wrap:wrap;">
-        <button class="btn btn-outline-sm" data-piece-voir="${f.name}">Consulter</button>
-        ${modifiable ? `<button class="btn-status-action btn-status-ko" data-piece-suppr="${f.name}">Retirer</button>` : ''}
+        <button class="btn btn-outline-sm" data-piece-voir="${echapperHtml(f.name)}">Consulter</button>
+        ${modifiable ? `<button class="btn-status-action btn-status-ko" data-piece-suppr="${echapperHtml(f.name)}">Retirer</button>` : ''}
       </div>
     </div>
   `).join('');
@@ -1892,6 +1894,41 @@ function setupDepotKYC() {
 }
 
 /**
+ * Le journal de sécurité rejoue le texte qu'un membre a tenté d'envoyer. Ce
+ * texte est écrit par lui, pas par nous : l'insérer tel quel dans la page de
+ * l'administrateur reviendrait à lui laisser exécuter du code dans la session
+ * la plus privilégiée de la plateforme. Tout ce qui vient d'un membre passe
+ * donc par ici avant d'atteindre innerHTML.
+ */
+function echapperHtml(valeur) {
+  return String(valeur ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Le filtre enregistre l'expression régulière qui a déclenché. Utile pour
+ * déboguer, illisible pour un humain : « appelle[\s\-_]*moi » ne dit rien à
+ * personne. On traduit avant d'afficher, et on garde le motif technique en
+ * infobulle.
+ */
+function traduireDetection(motif) {
+  const m = (motif || '').toLowerCase();
+  if (m.includes('whatsapp') || m.includes('wa\\.me')) return 'Lien WhatsApp';
+  if (m.includes('telegram') || m.includes('t\\.me'))  return 'Lien Telegram';
+  if (m.includes('viber') || m.includes('signal'))     return 'Autre messagerie';
+  if (m.includes('lettres'))                           return 'Numéro écrit en toutes lettres';
+  if (m.includes('appelle'))                           return 'Invitation à appeler directement';
+  if (m.includes('contacte'))                          return 'Invitation à un contact direct';
+  if (m.includes('num') || m.includes('contact') || m.includes('tel')) return 'Partage de coordonnées';
+  if (m.includes('chiffres'))                          return 'Numéro de téléphone';
+  return 'Coordonnées détectées';
+}
+
+/**
  * Journal des tentatives de contournement. La table security_violations n'est
  * lisible que par un administrateur (policy violations_select_admin), et seule
  * la fonction serveur y écrit.
@@ -1910,11 +1947,15 @@ async function chargerJournalSecurite() {
     return;
   }
 
+  // La traduction se fait ici, à la source : les deux écrans qui lisent ce
+  // journal (le tableau de bord et le panneau SuperAdmin) affichent alors le
+  // même libellé, et aucun des deux ne peut oublier de traduire.
   state.securityLogs = (data || []).map(v => ({
     time: formatOrderDate(new Date(v.created_at)),
     user: v.profiles?.email || 'Compte supprimé',
     country: PAYS[v.profiles?.country]?.nom || v.profiles?.country || '—',
-    pattern: v.detected_pattern || 'Coordonnées détectées',
+    pattern: traduireDetection(v.detected_pattern),
+    motifTechnique: v.detected_pattern || '',
     action: v.action_taken === 'masked_and_warned' ? 'Masqué et signalé' : v.action_taken,
     tentative: v.attempted_content
   }));
@@ -1929,11 +1970,18 @@ function renderSecurityLogs() {
     return;
   }
 
+  // Tout ce qui suit vient de la base ; le texte intercepté vient d'un membre.
+  // Rien n'est concaténé sans passer par echapperHtml().
   feed.innerHTML = state.securityLogs.map(log => `
     <div class="log-entry">
-      <div class="log-meta">${log.time} • ${log.country} • ${log.user}</div>
-      <div class="log-content">Détection : ${log.pattern} ➔ Action : ${log.action}</div>
-      ${log.tentative ? `<div class="log-content" style="opacity:.7; font-style:italic;">Texte d'origine : « ${log.tentative} »</div>` : ''}
+      <div class="log-motif" title="Motif technique : ${echapperHtml(log.motifTechnique)}">
+        ${echapperHtml(log.pattern)}
+      </div>
+      <div class="log-meta">${echapperHtml(log.time)} • ${echapperHtml(log.country)} • ${echapperHtml(log.user)}</div>
+      ${log.tentative
+        ? `<div class="log-content">« ${echapperHtml(log.tentative)} »</div>`
+        : ''}
+      <div class="log-action">${echapperHtml(log.action)}</div>
     </div>
   `).join('');
 }

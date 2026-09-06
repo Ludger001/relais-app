@@ -46,7 +46,8 @@ const TOUTES_LES_PAGES = [
   { chemin: '/politique-confidentialite.html', nom: 'Confidentialité' },
   { chemin: '/charte-anti-fraude.html',   nom: 'Charte anti-fraude' },
   { chemin: '/app.html',                  nom: 'Application (marchand)',  compte: 'marchand@demo.relais' },
-  { chemin: '/app.html',                  nom: 'Application (agence)',    compte: 'agence@demo.relais' }
+  { chemin: '/app.html',                  nom: 'Application (agence)',    compte: 'agence@demo.relais' },
+  { chemin: '/app.html',                  nom: 'Application (admin)',     compte: 'admin@demo.relais' }
 ];
 
 const PAGES = PUBLIQUES_SEULEMENT
@@ -78,6 +79,74 @@ async function ouvrirSession(email) {
 
 // Tolérance : 1px de sous-pixel n'est pas un débordement visible
 const TOLERANCE = 2;
+
+/**
+ * L'application ouvre sur le tableau de bord ; mesurer ce seul écran laissait
+ * le chat, la finance et le reste sans contrôle. On passe donc sur chaque
+ * onglet réellement visible pour le rôle connecté.
+ */
+async function ongletsVisibles(onglet) {
+  return onglet.evaluate(() =>
+    Array.from(document.querySelectorAll('.tab-item'))
+      .filter((b) => getComputedStyle(b).display !== 'none')
+      .map((b) => b.dataset.tab)
+  );
+}
+
+
+/** Cherche ce qui deborde horizontalement sur l'ecran actuellement affiche. */
+async function mesurerEcran(onglet) {
+  return onglet.evaluate((tolerance) => {
+    const largeurEcran = document.documentElement.clientWidth;
+
+    // Éléments réellement plus larges que l'écran
+    const coupables = [];
+    for (const el of document.querySelectorAll('body *')) {
+      const style = getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
+
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+
+      const deborde = r.right > largeurEcran + tolerance || r.left < -tolerance;
+      if (!deborde) continue;
+
+      // Un conteneur qui défile tout seul, c'est voulu, pas un défaut
+      let parent = el.parentElement, gereParLuiMeme = false;
+      while (parent && parent !== document.body) {
+        const ps = getComputedStyle(parent);
+        if (ps.overflowX === 'auto' || ps.overflowX === 'scroll') { gereParLuiMeme = true; break; }
+        parent = parent.parentElement;
+      }
+      const propre = getComputedStyle(el).overflowX;
+      if (gereParLuiMeme || propre === 'auto' || propre === 'scroll') continue;
+
+      coupables.push({
+        balise: el.tagName.toLowerCase(),
+        classe: (el.className || '').toString().split(' ').filter(Boolean).slice(0, 2).join('.'),
+        largeur: Math.round(r.width),
+        droite: Math.round(r.right)
+      });
+    }
+
+    // Texte minuscule = illisible sur téléphone
+    let texteTropPetit = 0;
+    for (const el of document.querySelectorAll('p, span, li, label, td, a, div')) {
+      if (!el.textContent.trim() || el.children.length) continue;
+      const taille = parseFloat(getComputedStyle(el).fontSize);
+      if (taille > 0 && taille < 11) texteTropPetit++;
+    }
+
+    return {
+      largeurEcran,
+      largeurDocument: document.documentElement.scrollWidth,
+      debordement: document.documentElement.scrollWidth - largeurEcran,
+      coupables: coupables.slice(0, 4),
+      nbCoupables: coupables.length,
+      texteTropPetit
+    };
+  }, TOLERANCE);
+}
 
 (async () => {
   const navigateur = await chromium.launch();
@@ -121,74 +190,39 @@ const TOLERANCE = 2;
           throw new Error('session refusée : la page a redirigé vers la connexion');
         }
 
-        const mesure = await onglet.evaluate((tolerance) => {
-          const largeurEcran = document.documentElement.clientWidth;
+        // L'application ouvre sur le tableau de bord. Mesurer ce seul ecran
+        // laisserait le chat, la finance et le reste sans controle : on passe
+        // sur chaque onglet reellement autorise pour le role connecte.
+        const ecrans = page.compte
+          ? (await ongletsVisibles(onglet)).map((t) => ({ cle: t }))
+          : [{ cle: null }];
 
-          // Éléments réellement plus larges que l'écran
-          const coupables = [];
-          for (const el of document.querySelectorAll('body *')) {
-            const style = getComputedStyle(el);
-            if (style.display === 'none' || style.visibility === 'hidden') continue;
-
-            const r = el.getBoundingClientRect();
-            if (r.width === 0 && r.height === 0) continue;
-
-            const deborde = r.right > largeurEcran + tolerance || r.left < -tolerance;
-            if (!deborde) continue;
-
-            // Un conteneur qui défile tout seul, c'est voulu, pas un défaut
-            let parent = el.parentElement, gereParLuiMeme = false;
-            while (parent && parent !== document.body) {
-              const ps = getComputedStyle(parent);
-              if (ps.overflowX === 'auto' || ps.overflowX === 'scroll') { gereParLuiMeme = true; break; }
-              parent = parent.parentElement;
-            }
-            const propre = getComputedStyle(el).overflowX;
-            if (gereParLuiMeme || propre === 'auto' || propre === 'scroll') continue;
-
-            coupables.push({
-              balise: el.tagName.toLowerCase(),
-              classe: (el.className || '').toString().split(' ').filter(Boolean).slice(0, 2).join('.'),
-              largeur: Math.round(r.width),
-              droite: Math.round(r.right)
-            });
+        for (const ecran of ecrans) {
+          if (ecran.cle) {
+            await onglet.click(`.tab-item[data-tab="${ecran.cle}"]`);
+            await onglet.waitForTimeout(350);
           }
 
-          // Texte minuscule = illisible sur téléphone
-          let texteTropPetit = 0;
-          for (const el of document.querySelectorAll('p, span, li, label, td, a, div')) {
-            if (!el.textContent.trim() || el.children.length) continue;
-            const taille = parseFloat(getComputedStyle(el).fontSize);
-            if (taille > 0 && taille < 11) texteTropPetit++;
+          const mesure = await mesurerEcran(onglet);
+          controles++;
+          const ok = mesure.debordement <= TOLERANCE && mesure.nbCoupables === 0 && erreursJs.length === 0;
+          if (!ok) problemes++;
+
+          const nomEcran = ecran.cle ? `${appareil.nom} · ${ecran.cle}` : appareil.nom;
+          let ligne = `  ${ok ? 'OK   ' : 'ECHEC'} ${nomEcran.padEnd(34)} ${String(appareil.largeur).padStart(4)}px`;
+          if (mesure.debordement > TOLERANCE) {
+            ligne += `  deborde de ${mesure.debordement}px (${mesure.nbCoupables} element(s))`;
           }
+          if (erreursJs.length) ligne += '  erreur JS';
+          if (mesure.texteTropPetit > 0) ligne += `  · ${mesure.texteTropPetit} texte(s) < 11px`;
+          console.log(ligne);
 
-          return {
-            largeurEcran,
-            largeurDocument: document.documentElement.scrollWidth,
-            debordement: document.documentElement.scrollWidth - largeurEcran,
-            coupables: coupables.slice(0, 4),
-            nbCoupables: coupables.length,
-            texteTropPetit
-          };
-        }, TOLERANCE);
-
-        controles++;
-        const ok = mesure.debordement <= TOLERANCE && mesure.nbCoupables === 0 && erreursJs.length === 0;
-        if (!ok) problemes++;
-
-        let ligne = `  ${ok ? 'OK   ' : 'ECHEC'} ${appareil.nom.padEnd(24)} ${String(appareil.largeur).padStart(4)}px`;
-        if (mesure.debordement > TOLERANCE) {
-          ligne += `  deborde de ${mesure.debordement}px (${mesure.nbCoupables} element(s))`;
-        }
-        if (erreursJs.length) ligne += `  erreur JS`;
-        if (mesure.texteTropPetit > 0) ligne += `  · ${mesure.texteTropPetit} texte(s) < 11px`;
-        console.log(ligne);
-
-        for (const c of mesure.coupables) {
-          console.log(`         -> <${c.balise}${c.classe ? ' class="' + c.classe + '"' : ''}> large de ${c.largeur}px, bord droit a ${c.droite}px`);
-        }
-        for (const e of erreursJs.slice(0, 2)) {
-          console.log(`         -> JS : ${e.split('\n')[0].slice(0, 90)}`);
+          for (const c of mesure.coupables) {
+            console.log(`         -> <${c.balise}${c.classe ? ' class="' + c.classe + '"' : ''}> large de ${c.largeur}px, bord droit a ${c.droite}px`);
+          }
+          for (const e of erreursJs.slice(0, 2)) {
+            console.log(`         -> JS : ${e.split(/\r?\n/)[0].slice(0, 90)}`);
+          }
         }
 
       } catch (err) {

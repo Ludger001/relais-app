@@ -176,3 +176,27 @@ REVOKE ALL ON FUNCTION public.tableau_de_bord_admin()    FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.tableau_de_bord_marchand() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.tableau_de_bord_agence()   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.tableau_de_bord_admin()    TO authenticated;
+
+
+-- -----------------------------------------------------------------------------
+-- 5. DURCISSEMENT DES FONCTIONS DE REFERENCE
+--
+-- Applique le 2026-09-06 : relais_fige_search_path_references
+--
+-- reference_commande() et reference_reversement() appelaient nextval() sur une
+-- sequence nommee sans schema, sans search_path fige. L'appelant choisissait
+-- donc ou cette sequence etait cherchee : il pouvait en placer une a lui devant
+-- et decider des references emises. Le chemin est desormais fige, comme pour
+-- toutes les autres fonctions du projet.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.reference_commande()
+RETURNS TEXT LANGUAGE SQL SET search_path = public AS $$
+  SELECT 'REL-' || TO_CHAR(NOW(), 'YYYY') || '-' ||
+         LPAD(nextval('public.sequence_reference_commande')::TEXT, 5, '0');
+$$;
+
+CREATE OR REPLACE FUNCTION public.reference_reversement()
+RETURNS TEXT LANGUAGE SQL SET search_path = public AS $$
+  SELECT 'PAY-' || TO_CHAR(NOW(), 'YYYY') || '-' ||
+         LPAD(nextval('public.sequence_reference_reversement')::TEXT, 5, '0');
+$$;

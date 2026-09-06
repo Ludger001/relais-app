@@ -119,8 +119,10 @@ body.landing-body {
   line-height: 1.1;
 }
 
+/* 0.7rem = 11.2px : sous 11px, le texte devient illisible sur telephone
+   et certains navigateurs proposent de zoomer la page. */
 .brand-sub {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   color: var(--primary);
   text-transform: uppercase;
   letter-spacing: 0.6px;

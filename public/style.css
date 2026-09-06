@@ -117,8 +117,9 @@ body {
   color: var(--text-main);
 }
 
+/* 0.7rem = 11.2px : voir .brand-sub dans landing.css, meme raison. */
 .brand-badge {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   background: var(--primary-light);
   color: var(--primary);
@@ -1275,12 +1276,15 @@ body {
   gap: 1.5rem;
 }
 
+/* min-width: 0 — sinon un enfant large refuse de retrecir et pousse la carte
+   au-dela de l'ecran : par defaut, un element de grille vaut min-width: auto. */
 .admin-card {
   background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
+  min-width: 0;
 }
 
 .admin-card-header h3 {
@@ -1342,24 +1346,52 @@ body {
   overflow-y: auto;
 }
 
+/* Ce journal cite du texte ecrit par un membre : il peut contenir un mot tres
+   long qu'aucun espace ne coupe. Sans break-word, ce mot fixait la largeur
+   minimale de la carte et faisait dezoomer la page entiere sur les telephones
+   de 320 a 390px. */
 .log-entry {
   background: #fef2f2;
   border-left: 3px solid var(--danger);
-  padding: 10px 14px;
-  border-radius: 4px;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
   font-size: 0.82rem;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.log-motif {
+  font-weight: 700;
+  color: var(--danger);
+  line-height: 1.4;
+  cursor: help;
 }
 
 .log-meta {
   color: var(--text-muted);
   font-size: 0.74rem;
-  margin-bottom: 2px;
+  margin-top: 2px;
   font-weight: 600;
+  overflow-wrap: break-word;
 }
 
+/* Le texte intercepte, cite tel qu'il a ete ecrit */
 .log-content {
+  margin-top: 0.4rem;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+.log-action {
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--danger);
-  font-family: monospace;
+  opacity: 0.75;
 }
 
 /* 6. MODALS EN STYLE LUMINEUX */

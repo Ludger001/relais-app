@@ -215,8 +215,9 @@ relais-app/
 │   ├── testAntiBypass.js        les règles du filtre
 │   ├── testFiltreSynchronise.js les deux copies disent-elles la même chose ?
 │   ├── testRoles.js             cloisonnement des rôles + tentatives de forçage
+│   ├── testEchappement.js       aucun texte de membre n'atteint innerHTML brut
 │   ├── testAffichageVide.js     aucun écran ne plante avec une base vide
-│   ├── testResponsive.js        6 pages × 8 modèles de téléphones
+│   ├── testResponsive.js        11 pages × 8 modèles, onglet par onglet
 │   ├── testChatServeur.js       le filtre serveur est-il contournable ?
 │   ├── testCycleCommande.js     cycle complet, marchand + agence simultanés
 │   ├── testCertificationKYC.js  parcours de certification, 3 rôles
@@ -422,6 +423,15 @@ d'appel.
 prélève rien. Une zone vide dit pourquoi elle est vide. Un compteur affiche le
 vrai nombre.
 
+**Rien de ce qu'écrit un membre ne devient du HTML.** Le corps d'un message,
+le nom d'une boutique, le nom d'un fichier déposé, le texte qu'un membre a
+tenté d'envoyer et que le filtre a intercepté : tout cela est écrit par
+quelqu'un d'autre que nous. Chacune de ces valeurs passe par `echapperHtml()`
+avant d'atteindre `innerHTML`. Sans ça, un marchand pouvait faire exécuter du
+code dans la session de l'agence — et surtout dans celle de l'administrateur,
+la plus privilégiée de la plateforme. `tests/testEchappement.js` échoue si un
+seul de ces champs redevient brut.
+
 **La clé Supabase est publique, et c'est normal.** Elle est faite pour le
 navigateur. Ce sont les règles de la base qui protègent les données, pas son
 secret. La clé `service_role`, elle, ne doit **jamais** apparaître côté client.
@@ -440,8 +450,8 @@ npm run dev              # http://localhost:3000
 ### Tests
 
 ```bash
-npm test                 # filtre, synchronisation, rôles, écrans vides
-npm run test:responsive  # 6 pages × 8 modèles de téléphones
+npm test                 # filtre, synchronisation, rôles, échappement, écrans vides
+npm run test:responsive  # 11 pages × 8 modèles, chaque onglet de chaque rôle
 npm run test:chat        # le filtre serveur est-il contournable ?
 npm run test:commande    # cycle complet d'une commande
 npm run test:kyc         # parcours de certification

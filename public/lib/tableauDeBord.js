@@ -101,23 +101,13 @@ const COULEURS = {
   echec:   'var(--danger)'
 };
 
-/**
- * Le journal de sécurité affichait la règle technique qui avait déclenché la
- * détection — « appelle[\s\-_]*moi ». Illisible, et sans intérêt pour la
- * personne qui doit décider quoi faire du membre concerné.
+/*
+ * La traduction du motif technique (« appelle[\s\-_]*moi » → « Invitation à
+ * appeler directement ») et l'échappement du texte intercepté vivent dans
+ * app.js : traduireDetection() et echapperHtml(). Ils s'appliquent au moment
+ * où le journal est chargé, donc ce fichier et le panneau SuperAdmin lisent
+ * exactement le même libellé — aucun des deux ne peut oublier de traduire.
  */
-function traduireDetection(motif) {
-  const m = (motif || '').toLowerCase();
-  if (m.includes('whatsapp') || m.includes('wa\\.me')) return 'Lien WhatsApp';
-  if (m.includes('telegram') || m.includes('t\\.me'))  return 'Lien Telegram';
-  if (m.includes('viber') || m.includes('signal'))     return 'Autre messagerie';
-  if (m.includes('lettres'))                           return 'Numéro écrit en toutes lettres';
-  if (m.includes('appelle'))                           return 'Invitation à appeler directement';
-  if (m.includes('contacte'))                          return 'Invitation à un contact direct';
-  if (m.includes('num') || m.includes('contact') || m.includes('tel')) return 'Partage de coordonnées';
-  if (m.includes('chiffres'))                          return 'Numéro de téléphone';
-  return 'Coordonnées détectées';
-}
 
 /* =============================================================================
    MARCHAND
@@ -146,8 +136,8 @@ function vueMarchand(c, profil) {
   return `
     <div class="tb-entete">
       <div>
-        <h2 class="tb-salutation">${saluer()}${profil.full_name ? ', ' + profil.full_name.split(' ')[0] : ''}</h2>
-        <p class="tb-sous-titre">${profil.merchant?.store_name || 'Votre boutique'} · ${pluriel(c.agences_actives, 'agence partenaire', 'agences partenaires')}</p>
+        <h2 class="tb-salutation">${saluer()}${profil.full_name ? ', ' + echapperHtml(profil.full_name.split(' ')[0]) : ''}</h2>
+        <p class="tb-sous-titre">${echapperHtml(profil.merchant?.store_name || 'Votre boutique')} · ${pluriel(c.agences_actives, 'agence partenaire', 'agences partenaires')}</p>
       </div>
       <span class="tb-horodatage">${dateDuJour()}</span>
     </div>
@@ -259,8 +249,8 @@ function vueAgence(c, profil) {
   return `
     <div class="tb-entete">
       <div>
-        <h2 class="tb-salutation">${saluer()}${profil.full_name ? ', ' + profil.full_name.split(' ')[0] : ''}</h2>
-        <p class="tb-sous-titre">${profil.agency?.company_name || 'Votre agence'} · ${profil.agency?.primary_city || ''} · ${pluriel(c.marchands_actifs, 'marchand')}</p>
+        <h2 class="tb-salutation">${saluer()}${profil.full_name ? ', ' + echapperHtml(profil.full_name.split(' ')[0]) : ''}</h2>
+        <p class="tb-sous-titre">${echapperHtml(profil.agency?.company_name || 'Votre agence')} · ${echapperHtml(profil.agency?.primary_city || '')} · ${pluriel(c.marchands_actifs, 'marchand')}</p>
       </div>
       <span class="tb-horodatage">${dateDuJour()}</span>
     </div>
@@ -351,7 +341,7 @@ function vueAdmin(c, profil, journal) {
   return `
     <div class="tb-entete">
       <div>
-        <h2 class="tb-salutation">${saluer()}${profil.full_name ? ', ' + profil.full_name.split(' ')[0].replace(/[—-]/, '') : ''}</h2>
+        <h2 class="tb-salutation">${saluer()}${profil.full_name ? ', ' + echapperHtml(profil.full_name.split(' ')[0].replace(/[—-]/, '')) : ''}</h2>
         <p class="tb-sous-titre">État de la plateforme Relais</p>
       </div>
       <span class="tb-horodatage">${dateDuJour()}</span>
@@ -398,12 +388,12 @@ function vueAdmin(c, profil, journal) {
                  ${derniers.map(v => `
                    <div class="tb-journal-item">
                      <div class="tb-journal-tete">
-                       <span class="tb-journal-qui">${v.user}</span>
-                       <span class="tb-journal-quand">${v.time} · ${v.country}</span>
+                       <span class="tb-journal-qui">${echapperHtml(v.user)}</span>
+                       <span class="tb-journal-quand">${echapperHtml(v.time)} · ${echapperHtml(v.country)}</span>
                      </div>
                      <div class="tb-journal-quoi">
-                       ${traduireDetection(v.pattern)} — masqué et signalé
-                       ${v.tentative ? `<span class="tb-journal-texte">« ${v.tentative} »</span>` : ''}
+                       ${echapperHtml(v.pattern)} — masqué et signalé
+                       ${v.tentative ? `<span class="tb-journal-texte">« ${echapperHtml(v.tentative)} »</span>` : ''}
                      </div>
                    </div>`).join('')}
                </div>`}
