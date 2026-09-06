@@ -116,10 +116,19 @@ Deno.serve(async (requete) => {
     return reponse({ erreur: 'Cette conversation est bloquée.' }, 403);
   }
 
-  // 4. LE FILTRE — le vrai, celui qu'on ne peut pas contourner
+  // 4. CADENCE — on ne martèle pas cette fonction
+  //    Le contrôle vit en base : il résiste à un redéploiement et s'applique
+  //    quelle que soit la voie d'appel.
+  const { data: cadence } = await admin.rpc('verifier_cadence_messages', { p_profil: profil.id });
+  const verdict = Array.isArray(cadence) ? cadence[0] : cadence;
+  if (verdict && verdict.autorise === false) {
+    return reponse({ erreur: verdict.motif }, 429);
+  }
+
+  // 5. LE FILTRE — le vrai, celui qu'on ne peut pas contourner
   const inspection = inspectAndSanitizeMessage(contenu);
 
-  // 5. ENREGISTREMENT
+  // 6. ENREGISTREMENT
   const { data: message, error: erreurInsertion } = await admin
     .from('messages')
     .insert({
@@ -142,7 +151,7 @@ Deno.serve(async (requete) => {
     .update({ last_message_at: new Date().toISOString() })
     .eq('id', conversationId);
 
-  // 6. TRACE DE LA TENTATIVE, pour l'espace d'administration
+  // 7. TRACE DE LA TENTATIVE, pour l'espace d'administration
   if (inspection.isBlocked) {
     const { error: erreurTrace } = await admin.from('security_violations').insert({
       user_id: profil.id,
