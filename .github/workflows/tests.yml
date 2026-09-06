@@ -1,0 +1,65 @@
+name: Tests
+
+# Rien ne doit partir en production sans que les règles du filtre, le
+# cloisonnement des rôles et la robustesse des écrans aient été vérifiés.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verifications-rapides:
+    name: Filtre, rôles, écrans vides
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci --ignore-scripts
+
+      - name: Le filtre anti-désintermédiation
+        run: node tests/testAntiBypass.js
+
+      - name: Les deux copies du filtre sont-elles alignées ?
+        run: node tests/testFiltreSynchronise.js
+
+      - name: Cloisonnement des rôles
+        run: node tests/testRoles.js
+
+      - name: Aucun écran ne plante avec une base vide
+        run: node tests/testAffichageVide.js
+
+  affichage-telephones:
+    name: Affichage sur 8 modèles de téléphones
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Installer Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Lancer le serveur local
+        run: |
+          npx serve public -l 3000 &
+          npx wait-on http://localhost:3000/index.html --timeout 30000
+
+      # Les pages publiques seules : app.html demande une session Supabase,
+      # qu'on ne veut pas ouvrir depuis l'intégration continue.
+      - name: Vérifier les débordements
+        run: node tests/testResponsive.js http://localhost:3000
+        env:
+          PAGES_PUBLIQUES_SEULEMENT: '1'

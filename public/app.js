@@ -181,6 +181,9 @@ const state = {
   // Points financiers (reversements) chargés depuis Supabase
   payouts: [],
 
+  // Agences que ce marchand peut noter (il a des livraisons réussies chez elles)
+  notables: [],
+
   // Abonnement du membre connecté (paywall bilatéral)
   abonnement: null,
 
@@ -207,6 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await chargerCommandes();
   await chargerPointsFinanciers();
   await chargerAbonnement();
+  await chargerAgencesNotables();
   await chargerJournalSecurite();
 
   renderAgencies();
@@ -356,6 +360,7 @@ function renderAgencies() {
         <button class="btn btn-primary-sm" onclick="startChatWithAgency('${agency.id}')">
           Discuter & Commander
         </button>
+        ${boutonNotation(agency)}
       </div>
     </div>
   `).join('');
@@ -876,6 +881,24 @@ function carteCommande(order) {
   `;
 }
 
+/**
+ * Le bouton de notation n'apparaît que si ce marchand a réellement reçu des
+ * livraisons de cette agence — c'est ce qui donne du poids à la note.
+ */
+function boutonNotation(agency) {
+  if (state.currentRole !== 'merchant') return '';
+  const notable = state.notables?.find(n => n.agency_id === agency.id);
+  if (!notable) return '';
+
+  return notable.deja_note
+    ? `<button class="btn btn-outline-sm" onclick="noterAgence('${agency.id}')" title="Modifier votre avis">
+         ★ Votre note : ${notable.ma_note}/5
+       </button>`
+    : `<button class="btn btn-outline-sm" onclick="noterAgence('${agency.id}')">
+         ★ Noter cette agence
+       </button>`;
+}
+
 function formatStatus(status) {
   switch (status) {
     case 'delivered': return 'Livré & Encaissé';
@@ -1011,6 +1034,77 @@ function renderAbonnement() {
       ? (state.profile.merchant?.store_name || 'Espace marchand')
       : (state.profile.agency?.company_name || 'Espace agence');
   }
+}
+
+/**
+ * Les agences que ce marchand a le droit de noter : celles qui ont réellement
+ * livré pour lui. La règle est appliquée en base, pas ici.
+ */
+async function chargerAgencesNotables() {
+  if (state.currentRole !== 'merchant') return;
+  const { data, error } = await db.rpc('agences_notables');
+  if (error) {
+    console.error('[Relais] Agences notables indisponibles :', error.message);
+    return;
+  }
+  state.notables = data || [];
+}
+
+/**
+ * Dépose ou met à jour l'avis d'un marchand sur une agence.
+ * La moyenne affichée dans l'annuaire est recalculée par la base.
+ */
+async function noterAgence(agencyId) {
+  const agence = state.agencies.find(a => a.id === agencyId);
+  const existant = state.notables?.find(n => n.agency_id === agencyId);
+  if (!agence) return;
+
+  const saisie = prompt(
+    [
+      `Votre note sur ${agence.name}, de 1 à 5 :`,
+      '',
+      '5 — livraisons rapides, reversements sans accroc',
+      '1 — retards répétés ou difficultés de reversement'
+    ].join(String.fromCharCode(10)),
+    existant?.ma_note ? String(existant.ma_note) : '5'
+  );
+  if (saisie === null) return;
+
+  const note = parseInt(saisie, 10);
+  if (!(note >= 1 && note <= 5)) {
+    alert('La note doit être un chiffre entre 1 et 5.');
+    return;
+  }
+
+  const commentaire = prompt(
+    ['Un commentaire ? Il sera visible des autres e-commerçants.', '(facultatif)']
+      .join(String.fromCharCode(10)),
+    existant?.mon_commentaire || ''
+  );
+
+  const avis = {
+    agency_id: agencyId,
+    merchant_id: state.profile.merchant.id,
+    overall_rating: note,
+    comment: (commentaire || '').trim() || null
+  };
+
+  // Un marchand ne note une agence qu'une fois : on écrase son avis précédent
+  const { error } = await db.from('reviews').upsert(avis, { onConflict: 'agency_id,merchant_id' });
+
+  if (error) {
+    console.error('[Relais] Avis refusé :', error.message);
+    alert(
+      /row-level security/i.test(error.message)
+        ? "Vous ne pouvez noter qu'une agence ayant réellement livré pour vous."
+        : "Votre avis n'a pas pu être enregistré : " + error.message
+    );
+    return;
+  }
+
+  await chargerAgences();
+  await chargerAgencesNotables();
+  renderAgencies();
 }
 
 async function chargerPointsFinanciers() {

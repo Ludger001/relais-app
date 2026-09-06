@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "playwright": "^1.63.0",
-    "serve": "^14.2.4"
+    "serve": "^14.2.4",
+    "wait-on": "^9.1.0"
   }
 }

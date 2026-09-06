@@ -32,7 +32,11 @@ const APPAREILS = [
   { nom: 'iPad Mini (portrait)',    largeur: 768, hauteur: 1024, dpr: 2 }
 ];
 
-const PAGES = [
+// En intégration continue, on ne dispose pas des comptes de démonstration :
+// on se limite alors aux pages publiques.
+const PUBLIQUES_SEULEMENT = process.env.PAGES_PUBLIQUES_SEULEMENT === '1';
+
+const TOUTES_LES_PAGES = [
   { chemin: '/index.html',                nom: "Page d'accueil" },
   { chemin: '/connexion.html',            nom: 'Connexion' },
   { chemin: '/inscription-marchand.html', nom: 'Inscription marchand' },
@@ -44,6 +48,10 @@ const PAGES = [
   { chemin: '/app.html',                  nom: 'Application (marchand)',  compte: 'marchand@demo.relais' },
   { chemin: '/app.html',                  nom: 'Application (agence)',    compte: 'agence@demo.relais' }
 ];
+
+const PAGES = PUBLIQUES_SEULEMENT
+  ? TOUTES_LES_PAGES.filter(p => !p.compte)
+  : TOUTES_LES_PAGES;
 
 // Comptes de démonstration : sans session, app.html redirige vers la connexion
 // et on ne mesurerait jamais le vrai écran.
