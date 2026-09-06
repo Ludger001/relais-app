@@ -12,7 +12,8 @@
     "test:commande": "node tests/testCycleCommande.js",
     "test:kyc": "node tests/testCertificationKYC.js",
     "test:reversement": "node tests/testReversement.js",
-    "test:motdepasse": "node tests/testMotDePasseOublie.js"
+    "test:motdepasse": "node tests/testMotDePasseOublie.js",
+    "test:direct": "node tests/testTempsReel.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

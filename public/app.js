@@ -184,6 +184,9 @@ const state = {
   // Agences que ce marchand peut noter (il a des livraisons réussies chez elles)
   notables: [],
 
+  // Canal d'écoute en direct (Supabase Realtime)
+  canalDirect: null,
+
   // Abonnement du membre connecté (paywall bilatéral)
   abonnement: null,
 
@@ -226,6 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderAbonnement();
   renderMonCompte();
   renderFinanceView();
+  ecouterEnDirect();
 });
 
 /**
@@ -1105,6 +1109,65 @@ async function noterAgence(agencyId) {
   await chargerAgences();
   await chargerAgencesNotables();
   renderAgencies();
+}
+
+
+// =============================================================================
+// TEMPS RÉEL — LE SIGNAL, PAS LE CONTENU
+// =============================================================================
+
+/**
+ * Le navigateur n'a pas le droit de lire la table `messages` : la diffusion
+ * en direct ne lui transporte donc AUCUN contenu. Elle sert uniquement de
+ * signal — « quelque chose a bougé » — après quoi on relit la conversation
+ * par le chemin normal, soumis aux règles de sécurité.
+ *
+ * Ce détour n'est pas une précaution de style : sans lui, il faudrait rendre
+ * la table lisible au client, et le texte d'origine des messages redeviendrait
+ * accessible.
+ */
+function ecouterEnDirect() {
+  if (state.canalDirect) return;
+
+  state.canalDirect = db
+    .channel('relais-activite')
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages' },
+      (signal) => rafraichirSurSignal(signal.new?.conversation_id))
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'orders' },
+      (signal) => rafraichirSurSignal(signal.new?.conversation_id || signal.old?.conversation_id, true))
+    .subscribe((etat) => {
+      if (etat === 'SUBSCRIBED') console.log('[Relais] Écoute en direct active.');
+      if (etat === 'CHANNEL_ERROR') console.warn('[Relais] Écoute en direct indisponible.');
+    });
+}
+
+let rafraichissementEnCours = false;
+
+async function rafraichirSurSignal(conversationId, toucheCommandes = false) {
+  if (!conversationId || rafraichissementEnCours) return;
+
+  // Le signal ne dit pas si la conversation nous concerne : on ne relit que
+  // les nôtres, et les règles RLS écarteraient de toute façon les autres.
+  const agencyId = Object.keys(state.conversationIds)
+    .find(id => state.conversationIds[id] === conversationId);
+  if (!agencyId) return;
+
+  rafraichissementEnCours = true;
+  try {
+    await chargerMessages(agencyId);
+    if (toucheCommandes) await chargerCommandes();
+
+    if (agencyId === state.selectedAgencyId) {
+      renderActiveChat();
+      renderOrdersStrip();
+    }
+    renderConversationsSidebar();
+    if (toucheCommandes) renderFinanceView();
+  } finally {
+    rafraichissementEnCours = false;
+  }
 }
 
 async function chargerPointsFinanciers() {
