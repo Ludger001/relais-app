@@ -182,7 +182,7 @@ body.landing-body {
   top: -120px;
   left: 50%;
   transform: translateX(-50%);
-  width: 900px;
+  width: min(900px, 100%);
   height: 480px;
   background: radial-gradient(circle, rgba(5, 150, 105, 0.08) 0%, rgba(79, 70, 229, 0.05) 50%, transparent 70%);
   pointer-events: none;
@@ -1622,37 +1622,160 @@ body.landing-body {
   text-decoration: underline;
 }
 
-/* Bandeau d'identité dans l'application */
-.session-identity {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.8rem;
+
+
+/* =========================================================================== */
+/* TÉLÉPHONES — la landing et les formulaires publics                          */
+/* =========================================================================== */
+
+@media (max-width: 640px) {
+  .section-container,
+  .nav-container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* En-tête public : la marque à gauche, les actions dessous */
+  .nav-container {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .nav-cta-group {
+    width: 100%;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .nav-cta-group .btn { flex: 1; justify-content: center; }
+  .brand-sub { display: none; }
+
+  .hero-headline { font-size: 1.85rem; line-height: 1.2; }
+  .hero-lead { font-size: 0.95rem; }
+  .hero-pill-badge { font-size: 0.72rem; text-align: center; }
+  .hero-section { padding-top: 2.5rem; }
+
+  .section-title { font-size: 1.6rem; }
+
+  /* Toutes les grilles à plusieurs colonnes passent sur une seule */
+  .hero-actions-dual,
+  .pricing-cards-container,
+  .story-grid,
+  .pillars-grid,
+  .footer-content,
+  .countries-grid,
+  .calc-results-grid,
+  .momo-selection-grid,
+  .form-row {
+    grid-template-columns: 1fr !important;
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .checkout-layout {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .checkout-form-side,
+  .checkout-summary-side {
+    flex: 1 1 auto !important;
+    width: 100%;
+  }
+
+  .auth-title { font-size: 1.5rem; }
+  .auth-subtitle { font-size: 0.9rem; }
+
+  /* Champs de saisie : 16px minimum, sinon iOS zoome à la sélection */
+  input, select, textarea, .form-input, .custom-select {
+    font-size: 16px;
+  }
+
+  .btn-hero { width: 100%; justify-content: flex-start; }
+
+  .summary-card { padding: 1.25rem; }
+
+  /* Les tableaux comparatifs défilent dans leur cadre */
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 
-.session-identity .session-name {
-  font-weight: 700;
-  line-height: 1.2;
+@media (max-width: 400px) {
+  .hero-headline { font-size: 1.6rem; }
+  .section-title { font-size: 1.35rem; }
+  .main-price { font-size: 1.8rem; }
 }
 
-.session-identity .session-role {
-  opacity: 0.7;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+/* =========================================================================== */
+/* AUTORISER LE RÉTRÉCISSEMENT                                                 */
+/*                                                                             */
+/* Par défaut, un élément de grille ou de flexbox refuse de devenir plus étroit */
+/* que son contenu. Une liste déroulante dont l'option la plus longue fait      */
+/* 334px élargissait donc toute la page — c'est ce qui donnait cet effet de     */
+/* « zoom » incohérent sur téléphone.                                          */
+/* =========================================================================== */
+
+@media (max-width: 900px) {
+  body > * { min-width: 0; }
+
+  .form-row,
+  .form-group,
+  .checkout-layout,
+  .checkout-form,
+  .checkout-form-side,
+  .checkout-summary-side,
+  .auth-card-wrap,
+  .calc-results-side,
+  .calc-inputs-side {
+    min-width: 0;
+  }
+
+  .form-row > *,
+  .form-group > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Une liste déroulante ne doit pas imposer la largeur de son option la
+     plus longue : elle tronque, et l'utilisateur voit le texte à l'ouverture. */
+  select,
+  .custom-select,
+  input,
+  textarea,
+  .form-input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    text-overflow: ellipsis;
+  }
+
+  /* Le texte long doit couper plutôt que pousser la page */
+  h1, h2, h3, p, li, label, td, th, .btn {
+    overflow-wrap: break-word;
+  }
 }
 
-.btn-logout {
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
+/* Toutes les grilles multi-colonnes de la landing passent sur une colonne.
+   Liste établie en relevant chaque grid-template-columns du fichier, pour
+   n'en oublier aucune. */
+@media (max-width: 900px) {
+  .hero-actions-dual,
+  .story-grid,
+  .calc-body-grid,
+  .pillars-grid,
+  .countries-showcase-grid,
+  .pricing-cards-container,
+  .footer-content,
+  .momo-selection-grid,
+  .calc-results-side,
+  .calc-inputs-side {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
 
-.btn-logout:hover {
-  background: rgba(0, 0, 0, 0.05);
+  .calc-body-grid > *,
+  .calc-results-side > *,
+  .result-box,
+  .calc-roi-badge {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .calculator-3d-card { padding: 1.5rem 1.15rem; }
 }

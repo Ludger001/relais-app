@@ -5,9 +5,11 @@
   "description": "Relais — reseau B2B ferme d'agences de livraison COD certifiees (Benin, Togo, Senegal, Cote d'Ivoire, Gabon)",
   "scripts": {
     "dev": "serve public -l 3000",
-    "test": "node tests/testAntiBypass.js"
+    "test": "node tests/testAntiBypass.js && node tests/testRoles.js && node tests/testAffichageVide.js",
+    "test:responsive": "node tests/testResponsive.js"
   },
   "devDependencies": {
+    "playwright": "^1.63.0",
     "serve": "^14.2.4"
   }
 }

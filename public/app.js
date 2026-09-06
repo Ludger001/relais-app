@@ -190,7 +190,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await chargerAgences();
 
   renderAgencies();
-  setupRoleSwitcher();
   setupTabNavigation();
   setupCountryFilters();
   setupChat();
@@ -221,9 +220,7 @@ function appliquerProfil(profil) {
   }
   if (bloc) bloc.hidden = false;
 
-  // L'onglet SuperAdmin n'existe que pour un administrateur
-  const ongletAdmin = document.getElementById('tab-btn-admin');
-  if (ongletAdmin) ongletAdmin.style.display = profil.role === 'admin' ? 'flex' : 'none';
+  appliquerOngletsAutorises(profil.role);
 
   // Bandeau d'abonnement
   const pastille = document.getElementById('sub-status-text');
@@ -437,11 +434,31 @@ function renderConversationsSidebar() {
 
   const agencyList = state.agencies.filter(a => state.conversations[a.id]);
 
+  // Compteurs : ils affichaient « 2 agences » et « 1 » en dur
+  const compteur = document.getElementById('active-chats-count');
+  if (compteur) {
+    compteur.textContent = agencyList.length === 0
+      ? 'Aucune'
+      : `${agencyList.length} ${agencyList.length > 1 ? 'agences' : 'agence'}`;
+  }
+
+  const badgeOnglet = document.getElementById('chat-badge-count');
+  if (badgeOnglet) {
+    badgeOnglet.textContent = agencyList.length;
+    badgeOnglet.hidden = agencyList.length === 0;
+  }
+
   if (agencyList.length === 0) {
+    // Une agence n'a pas accès à l'annuaire : lui dire d'y aller n'aurait aucun sens
+    const message = state.currentRole === 'agency'
+      ? `Aucun e-commerçant ne vous a encore contacté.<br>
+         Les demandes arriveront ici dès qu'un marchand ouvrira une conversation.`
+      : `Aucune conversation pour l'instant.<br>
+         Contactez une agence depuis l'annuaire pour en ouvrir une.`;
+
     container.innerHTML = `
       <div style="padding:1.5rem; color: var(--text-dim); font-size:.85rem; line-height:1.6;">
-        Aucune conversation pour l'instant.<br>
-        Contactez une agence depuis l'annuaire pour en ouvrir une.
+        ${message}
       </div>`;
     return;
   }
@@ -493,24 +510,45 @@ function startChatWithAgency(agencyId) {
 
 function renderActiveChat() {
   const container = document.getElementById('messages-stream');
-  const agency = state.agencies.find(a => a.id === state.selectedAgencyId) || state.agencies[0];
+
+  // Pas de repli sur la première agence de la liste : une agence connectée
+  // se serait vue elle-même comme interlocutrice.
+  const agency = state.selectedAgencyId
+    ? state.agencies.find(a => a.id === state.selectedAgencyId)
+    : null;
 
   // Aucune agence disponible : on l'annonce au lieu de planter
   if (!agency) {
+    const estAgence = state.currentRole === 'agency';
+
     document.getElementById('chat-partner-name').textContent = 'Aucune conversation';
     document.getElementById('chat-partner-flag').textContent = '💬';
-    document.getElementById('chat-partner-meta').textContent =
-      "Ouvrez l'annuaire et contactez une agence certifiée pour démarrer.";
+    document.getElementById('chat-partner-meta').textContent = estAgence
+      ? 'Les e-commerçants qui vous contactent apparaîtront ici.'
+      : "Ouvrez l'annuaire et contactez une agence certifiée pour démarrer.";
+
+    // Ces éléments décrivent un interlocuteur qui n'existe pas encore
+    document.querySelectorAll('.verified-badge-sm').forEach(b => { b.hidden = true; });
+    document.querySelectorAll('.chat-actions-group .btn').forEach(b => { b.disabled = true; });
+
     if (container) {
-      container.innerHTML = `
-        <div style="text-align:center; padding:3rem; color: var(--text-dim);">
-          <p style="font-size:1.05rem; margin-bottom:.4rem;">Vous n'avez encore aucune conversation.</p>
-          <p style="font-size:.85rem;">Rendez-vous dans l'annuaire et cliquez sur « Discuter &amp; Commander ».</p>
-        </div>`;
+      container.innerHTML = estAgence
+        ? `<div style="text-align:center; padding:3rem; color: var(--text-dim);">
+             <p style="font-size:1.05rem; margin-bottom:.4rem;">Aucun e-commerçant ne vous a encore contacté.</p>
+             <p style="font-size:.85rem;">Votre agence apparaît dans l'annuaire des marchands une fois certifiée.</p>
+           </div>`
+        : `<div style="text-align:center; padding:3rem; color: var(--text-dim);">
+             <p style="font-size:1.05rem; margin-bottom:.4rem;">Vous n'avez encore aucune conversation.</p>
+             <p style="font-size:.85rem;">Rendez-vous dans l'annuaire et cliquez sur « Discuter &amp; Commander ».</p>
+           </div>`;
     }
     renderOrdersStrip();
     return;
   }
+
+  // Un interlocuteur existe : on réactive ce qui le décrit
+  document.querySelectorAll('.verified-badge-sm').forEach(b => { b.hidden = false; });
+  document.querySelectorAll('.chat-actions-group .btn').forEach(b => { b.disabled = false; });
 
   // Header chat
   document.getElementById('chat-partner-name').textContent = agency.name;
@@ -867,7 +905,50 @@ function setupTabNavigation() {
   });
 }
 
+/**
+ * Chaque rôle n'a accès qu'à ses propres écrans.
+ *
+ * L'annuaire est l'outil du marchand : c'est lui qui cherche une agence.
+ * Une agence n'a rien à y faire — ni pour observer ses concurrentes, ni
+ * pour approcher des marchands. Elle voit qui l'a contactée, ses livraisons
+ * et son bilan, rien d'autre.
+ */
+const ONGLETS_PAR_ROLE = {
+  merchant: ['directory', 'chat', 'finance'],
+  agency:   ['chat', 'finance'],
+  admin:    ['directory', 'chat', 'finance', 'admin']
+};
+
+function ongletsAutorises() {
+  return ONGLETS_PAR_ROLE[state.currentRole] || [];
+}
+
+function appliquerOngletsAutorises(role) {
+  const autorises = ONGLETS_PAR_ROLE[role] || [];
+
+  document.querySelectorAll('.tab-item').forEach(btn => {
+    const permis = autorises.includes(btn.dataset.tab);
+    btn.style.display = permis ? '' : 'none';
+    btn.disabled = !permis;
+  });
+
+  // Un onglet interdit ne doit pas rester affiché s'il était actif
+  document.querySelectorAll('.tab-panel').forEach(panel => {
+    const nom = panel.id.replace(/^view-/, '');
+    if (!autorises.includes(nom)) panel.classList.remove('active');
+  });
+
+  // On ouvre le premier écran auquel ce rôle a droit
+  if (autorises.length) switchTab(autorises[0]);
+}
+
 function switchTab(tabName) {
+  // Garde-fou : même appelé depuis la console, un onglet interdit reste fermé
+  if (!ongletsAutorises().includes(tabName)) {
+    console.warn(`[Relais] Onglet « ${tabName} » non autorisé pour le rôle ${state.currentRole}.`);
+    return;
+  }
+
   document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
 
@@ -881,42 +962,6 @@ function switchTab(tabName) {
   if (tabName === 'chat') renderActiveChat();
 }
 
-function setupRoleSwitcher() {
-  const roleBtns = document.querySelectorAll('.role-btn');
-  roleBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      roleBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.currentRole = btn.dataset.role;
-
-      // Afficher / masquer l'onglet admin selon le rôle
-      const adminTab = document.getElementById('tab-btn-admin');
-      if (state.currentRole === 'admin') {
-        adminTab.style.display = 'flex';
-        switchTab('admin');
-      } else {
-        adminTab.style.display = 'none';
-        if (document.getElementById('view-admin').classList.contains('active')) {
-          switchTab('directory');
-        }
-      }
-
-      // Mise à jour de l'indicateur d'abonnement
-      const subPill = document.getElementById('sub-status-text');
-      if (state.currentRole === 'merchant') {
-        subPill.textContent = 'Pass Marchand Multi-Pays Actif';
-      } else if (state.currentRole === 'agency') {
-        subPill.textContent = 'Pack Agence Certifiée Actif';
-      } else {
-        subPill.textContent = 'SuperAdmin Root';
-      }
-
-      renderActiveChat();
-      // Les actions de clôture n'appartiennent qu'à l'agence : il faut redessiner le bilan
-      renderFinanceView();
-    });
-  });
-}
 
 function setupModals() {
   // Modal Commande

@@ -28,21 +28,8 @@
         </div>
       </a>
 
-      <!-- SÉLECTEUR DE RÔLE — outil de démonstration uniquement.
-           Le rôle réel vient du compte connecté ; ce bloc reste masqué
-           tant qu'on ne l'active pas explicitement (voir app.js). -->
-      <div class="role-switcher" id="role-switcher" hidden>
-        <span class="role-label">Mode :</span>
-        <button class="role-btn active" data-role="merchant" id="btn-role-merchant">
-          <span class="role-dot"></span> E-commerçant
-        </button>
-        <button class="role-btn" data-role="agency" id="btn-role-agency">
-          <span class="role-dot"></span> Agence
-        </button>
-        <button class="role-btn" data-role="admin" id="btn-role-admin">
-          <span class="role-dot"></span> Admin (Ludger)
-        </button>
-      </div>
+      <!-- Le sélecteur de rôle a été supprimé : il permettait d'ouvrir
+           l'espace d'un autre rôle. Le rôle vient du compte connecté. -->
 
       <!-- STATUT DU COMPTE & LIENS -->
       <div class="header-actions">
@@ -182,7 +169,7 @@
         <aside class="chat-conversations-sidebar">
           <div class="sidebar-top-bar">
             <h3 class="sidebar-heading">Conversations Actives</h3>
-            <span class="active-count-tag" id="active-chats-count">2 agences</span>
+            <span class="active-count-tag" id="active-chats-count">—</span>
           </div>
           <div class="conversations-list" id="conversations-list-container">
             <!-- Rendu dynamique -->
