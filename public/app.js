@@ -75,219 +75,107 @@ function periodLabel(period) {
   }
 }
 
+// Correspondances entre les codes stockés en base et ce qu'on affiche
+const PAYS = {
+  BJ: { nom: 'Bénin',           drapeau: '🇧🇯' },
+  TG: { nom: 'Togo',            drapeau: '🇹🇬' },
+  SN: { nom: 'Sénégal',         drapeau: '🇸🇳' },
+  CI: { nom: "Côte d'Ivoire",   drapeau: '🇨🇮' },
+  GA: { nom: 'Gabon',           drapeau: '🇬🇦' }
+};
+
+const FREQUENCES_REVERSEMENT = {
+  daily:        'Quotidien (J+1)',
+  twice_weekly: 'Bi-hebdomadaire',
+  weekly:       'Hebdomadaire',
+  bi_weekly:    'Toutes les 2 semaines'
+};
+
+/**
+ * Charge l'annuaire depuis Supabase.
+ *
+ * Aucun filtre « vérifiée » n'est écrit ici : les règles RLS ne renvoient
+ * déjà que les agences certifiées (plus la sienne, si on est une agence).
+ * Le tri se fait côté serveur, pas dans le navigateur.
+ */
+async function chargerAgences() {
+  const { data, error } = await db
+    .from('agencies')
+    .select('id, company_name, legal_registration_number, country, primary_city, covered_areas, base_delivery_fee, cod_payout_frequency, has_warehousing, fleet_size, status, rating_avg, rating_count')
+    .order('rating_avg', { ascending: false });
+
+  if (error) {
+    console.error('[Relais] Annuaire indisponible :', error.message);
+    state.agencesEnErreur = error.message;
+    state.agencies = [];
+    return;
+  }
+
+  state.agencesEnErreur = null;
+  state.agencies = (data || []).map(a => ({
+    id: a.id,
+    name: a.company_name,
+    country: a.country,
+    countryName: PAYS[a.country]?.nom || a.country,
+    flag: PAYS[a.country]?.drapeau || '🏳️',
+    city: a.primary_city,
+    areas: a.covered_areas || [],
+    baseFee: Number(a.base_delivery_fee) || 0,
+    payoutFrequency: a.cod_payout_frequency,
+    payoutText: FREQUENCES_REVERSEMENT[a.cod_payout_frequency] || a.cod_payout_frequency,
+    hasStorage: a.has_warehousing,
+    fleetSize: a.fleet_size,
+    rating: Number(a.rating_avg) || 0,
+    reviewCount: a.rating_count || 0,
+    legalId: a.legal_registration_number || 'Non renseigné',
+    isVerified: a.status === 'verified'
+  }));
+
+  remplirFiltreVilles();
+}
+
+/**
+ * Le filtre « ville » listait cinq villes écrites en dur. Il ne doit proposer
+ * que des villes où une agence existe réellement.
+ */
+function remplirFiltreVilles() {
+  const select = document.getElementById('filter-city');
+  if (!select) return;
+
+  const choixActuel = select.value;
+  const villes = [...new Set(state.agencies.map(a => a.city).filter(Boolean))].sort();
+
+  select.innerHTML =
+    '<option value="ALL">Toutes les villes</option>' +
+    villes.map(v => {
+      const pays = state.agencies.find(a => a.city === v)?.countryName || '';
+      return `<option value="${v}">${v}${pays ? ` (${pays})` : ''}</option>`;
+    }).join('');
+
+  if ([...select.options].some(o => o.value === choixActuel)) select.value = choixActuel;
+}
+
 // 1. ÉTAT GLOBAL DE L'APPLICATION
 const state = {
   currentRole: 'merchant', // 'merchant', 'agency', 'admin'
   isSubscribed: true,
   currentCountryFilter: 'ALL',
-  selectedAgencyId: 'agency-ci-1',
+  selectedAgencyId: null, // renseigné quand on ouvre une conversation
   currentPeriod: 'today', // 'today', 'yesterday', '7d', '30d', 'all'
   profile: null,          // profil Supabase du membre connecte
   
-  // Agences dans les 5 pays de lancement
-  agencies: [
-    {
-      id: 'agency-ci-1',
-      name: 'Ivoire Express COD',
-      country: 'CI',
-      countryName: 'Côte d\'Ivoire',
-      flag: '🇨🇮',
-      city: 'Abidjan',
-      areas: ['Cocody', 'Yopougon', 'Marcory', 'Plateau', 'Bingerville'],
-      baseFee: 2000,
-      payoutFrequency: 'daily',
-      payoutText: 'Quotidien (J+1)',
-      hasStorage: true,
-      fleetSize: 18,
-      rating: 4.9,
-      reviewCount: 42,
-      legalId: 'RCCM CI-ABJ-2023-B-1452',
-      isVerified: true
-    },
-    {
-      id: 'agency-bj-1',
-      name: 'Bénin Rapide Colis',
-      country: 'BJ',
-      countryName: 'Bénin',
-      flag: '🇧🇯',
-      city: 'Cotonou',
-      areas: ['Akpakpa', 'Cadjehoun', 'Calavi', 'Godomey', 'Porto-Novo'],
-      baseFee: 1500,
-      payoutFrequency: 'daily',
-      payoutText: 'Quotidien (J+1)',
-      hasStorage: true,
-      fleetSize: 12,
-      rating: 4.8,
-      reviewCount: 38,
-      legalId: 'IFU 3202112458971',
-      isVerified: true
-    },
-    {
-      id: 'agency-sn-1',
-      name: 'Teranga Livraisons COD',
-      country: 'SN',
-      countryName: 'Sénégal',
-      flag: '🇸🇳',
-      city: 'Dakar',
-      areas: ['Almadies', 'Plateau', 'Pikine', 'Guédiawaye', 'Rufisque', 'Thiès'],
-      baseFee: 1750,
-      payoutFrequency: 'twice_weekly',
-      payoutText: 'Bi-hebdomadaire (Mar & Ven)',
-      hasStorage: true,
-      fleetSize: 15,
-      rating: 4.9,
-      reviewCount: 51,
-      legalId: 'NINEA 0098745231',
-      isVerified: true
-    },
-    {
-      id: 'agency-tg-1',
-      name: 'Lomé Colis Secure',
-      country: 'TG',
-      countryName: 'Togo',
-      flag: '🇹🇬',
-      city: 'Lomé',
-      areas: ['Bè', 'Adidogomé', 'Agoè', 'Tokoin', 'Hedzranawoé'],
-      baseFee: 1500,
-      payoutFrequency: 'weekly',
-      payoutText: 'Hebdomadaire (Lundi)',
-      hasStorage: false,
-      fleetSize: 8,
-      rating: 4.7,
-      reviewCount: 19,
-      legalId: 'RCCM TG-LOM-2022-M-889',
-      isVerified: true
-    },
-    {
-      id: 'agency-ga-1',
-      name: 'Libreville Flash Express',
-      country: 'GA',
-      countryName: 'Gabon',
-      flag: '🇬🇦',
-      city: 'Libreville',
-      areas: ['Akanda', 'Owendo', 'Louis', 'Batterie IV', 'Nzeng-Ayong'],
-      baseFee: 2500,
-      payoutFrequency: 'daily',
-      payoutText: 'Quotidien (J+1)',
-      hasStorage: true,
-      fleetSize: 10,
-      rating: 4.8,
-      reviewCount: 27,
-      legalId: 'RCCM GA-LBV-2024-B-0041',
-      isVerified: true
-    },
-    {
-      id: 'agency-pending-1',
-      name: 'Sahara Logistics & Hub',
-      country: 'SN',
-      countryName: 'Sénégal',
-      flag: '🇸🇳',
-      city: 'Dakar',
-      areas: ['Dakar centre', 'Mermoz'],
-      baseFee: 2000,
-      payoutFrequency: 'weekly',
-      payoutText: 'Hebdomadaire',
-      hasStorage: false,
-      fleetSize: 4,
-      rating: 0,
-      reviewCount: 0,
-      legalId: 'NINEA 0054129871',
-      isVerified: false // En attente de validation par Ludger
-    }
-  ],
+  // Annuaire chargé depuis Supabase par chargerAgences()
+  agencies: [],
+  agencesEnErreur: null,
 
-  // Historique des messages de chat par agence
-  conversations: {
-    'agency-ci-1': [
-      {
-        id: 1,
-        sender: 'agency',
-        time: '10:14',
-        text: 'Bonjour ! Bienvenue chez Ivoire Express COD. Nous couvrons tout Abidjan et sa banlieue avec reversement des fonds sous 24h par Wave ou Orange Money.'
-      },
-      {
-        id: 2,
-        sender: 'merchant',
-        time: '10:18',
-        text: 'Parfait ! J\'ai un stock de 50 gels visage arrivés à Abidjan. Je commence à vous assigner mes commandes du jour dès maintenant.'
-      }
-    ],
-    'agency-bj-1': [
-      {
-        id: 1,
-        sender: 'agency',
-        time: 'Hier 16:30',
-        text: 'Salutations. Bénin Rapide Colis est à votre disposition pour vos livraisons Cotonou et Calavi.'
-      }
-    ]
-  },
+  // Conversations chargées depuis Supabase (Bloc 5)
+  conversations: {},
 
-  // Commandes COD passées dans le chat
-  orders: [
-    {
-      id: 'REL-CI-0101',
-      agencyId: 'agency-ci-1',
-      productName: 'Gel Visage Éclat 200ml',
-      qty: 1,
-      codAmount: 15000,
-      deliveryFee: 2000,
-      recipientName: 'Mme Konan Aïssata',
-      recipientPhone: '07 45 88 12 90',
-      recipientCity: 'Cocody Angré',
-      recipientAddress: 'Résidence Les Jardins, Villa 12, face pharmacie Angré 8e Tranche',
-      status: 'delivered', // 'pending', 'in_transit', 'delivered', 'failed', 'returned'
-      payoutStatus: 'unpaid', // 'unpaid', 'paid'
-      createdAt: atDay(0, 10, 25)
-    },
-    {
-      id: 'REL-CI-0102',
-      agencyId: 'agency-ci-1',
-      productName: 'Pack 2x Crèmes Régénérantes',
-      qty: 2,
-      codAmount: 30000,
-      deliveryFee: 2000,
-      recipientName: 'M. Touré Mamadou',
-      recipientPhone: '05 03 77 41 26',
-      recipientCity: 'Yopougon Maroc',
-      recipientAddress: 'Rue des Jasmins, immeuble bleu, 3e étage, porte 7',
-      status: 'in_transit',
-      payoutStatus: 'unpaid',
-      createdAt: atDay(0, 11, 5)
-    },
-    {
-      id: 'REL-CI-0098',
-      agencyId: 'agency-ci-1',
-      productName: 'Sérum Anti-Taches Pro',
-      qty: 1,
-      codAmount: 22000,
-      deliveryFee: 2000,
-      recipientName: 'Mme Bamba Fatim',
-      recipientPhone: '01 62 09 55 38',
-      recipientCity: 'Marcory Zone 4',
-      recipientAddress: 'Boulevard VGE, en face du supermarché Cash Center',
-      status: 'delivered',
-      payoutStatus: 'unpaid',
-      createdAt: atDay(1, 14, 10)
-    }
-  ],
+  // Commandes COD chargées depuis Supabase (Bloc 5)
+  orders: [],
 
-  // Logs des tentatives de contournement détectées
-  securityLogs: [
-    {
-      time: '03/09/2026 10:45',
-      user: 'E-commerçant #4412',
-      country: 'Côte d\'Ivoire',
-      pattern: 'Numéro 10 chiffres (07...)',
-      action: 'Masqué côté serveur & Notifié'
-    },
-    {
-      time: '02/09/2026 18:22',
-      user: 'Agence non certifiée',
-      country: 'Sénégal',
-      pattern: 'Lien WhatsApp (wa.me)',
-      action: 'Bloqué & Profil sous surveillance'
-    }
-  ]
+  // Tentatives de contournement — table security_violations (Bloc 7)
+  securityLogs: []
 };
 
 // 2. INITIALISATION AU CHARGEMENT DU DOM
@@ -298,6 +186,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!profil) return;
 
   appliquerProfil(profil);
+
+  await chargerAgences();
 
   renderAgencies();
   setupRoleSwitcher();
@@ -389,10 +279,24 @@ function renderAgencies() {
   });
 
   if (filtered.length === 0) {
+    // Trois situations très différentes, trois messages différents
+    let titre, detail;
+
+    if (state.agencesEnErreur) {
+      titre = "L'annuaire n'a pas pu être chargé.";
+      detail = "Vérifiez votre connexion internet puis rechargez la page.";
+    } else if (state.agencies.length === 0) {
+      titre = "Aucune agence certifiée pour le moment.";
+      detail = "Les agences apparaissent ici une fois leur dossier vérifié par Relais.";
+    } else {
+      titre = "Aucune agence ne correspond à ces critères.";
+      detail = "Élargissez vos filtres ou choisissez un autre pays.";
+    }
+
     container.innerHTML = `
       <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-dim);">
-        <p style="font-size: 1.2rem; margin-bottom: 0.5rem;">Aucune agence trouvée pour ces critères.</p>
-        <p style="font-size: 0.85rem;">Essayez d'élargir vos filtres ou de sélectionner un autre pays.</p>
+        <p style="font-size: 1.2rem; margin-bottom: 0.5rem;">${titre}</p>
+        <p style="font-size: 0.85rem;">${detail}</p>
       </div>
     `;
     return;
@@ -533,6 +437,15 @@ function renderConversationsSidebar() {
 
   const agencyList = state.agencies.filter(a => state.conversations[a.id]);
 
+  if (agencyList.length === 0) {
+    container.innerHTML = `
+      <div style="padding:1.5rem; color: var(--text-dim); font-size:.85rem; line-height:1.6;">
+        Aucune conversation pour l'instant.<br>
+        Contactez une agence depuis l'annuaire pour en ouvrir une.
+      </div>`;
+    return;
+  }
+
   container.innerHTML = agencyList.map(agency => {
     const msgs = state.conversations[agency.id] || [];
     const lastMsg = msgs[msgs.length - 1]?.text || 'Nouvelle conversation';
@@ -579,15 +492,31 @@ function startChatWithAgency(agencyId) {
 }
 
 function renderActiveChat() {
+  const container = document.getElementById('messages-stream');
   const agency = state.agencies.find(a => a.id === state.selectedAgencyId) || state.agencies[0];
-  
+
+  // Aucune agence disponible : on l'annonce au lieu de planter
+  if (!agency) {
+    document.getElementById('chat-partner-name').textContent = 'Aucune conversation';
+    document.getElementById('chat-partner-flag').textContent = '💬';
+    document.getElementById('chat-partner-meta').textContent =
+      "Ouvrez l'annuaire et contactez une agence certifiée pour démarrer.";
+    if (container) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:3rem; color: var(--text-dim);">
+          <p style="font-size:1.05rem; margin-bottom:.4rem;">Vous n'avez encore aucune conversation.</p>
+          <p style="font-size:.85rem;">Rendez-vous dans l'annuaire et cliquez sur « Discuter &amp; Commander ».</p>
+        </div>`;
+    }
+    renderOrdersStrip();
+    return;
+  }
+
   // Header chat
   document.getElementById('chat-partner-name').textContent = agency.name;
   document.getElementById('chat-partner-flag').textContent = agency.flag;
   document.getElementById('chat-partner-meta').textContent = `${agency.city}, ${agency.countryName} • Reversement ${agency.payoutText}`;
 
-  // Messages stream
-  const container = document.getElementById('messages-stream');
   if (!container) return;
 
   const msgs = state.conversations[agency.id] || [];

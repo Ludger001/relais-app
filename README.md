@@ -68,12 +68,28 @@ sur des données qui n'existent pas encore.
 - [x] **Bloc 1** — Mise en ligne sur Vercel → https://relais-app-wwk4.vercel.app
 - [x] **Bloc 2** — Réparation des trous métier du prototype
 - [x] **Bloc 3** — Supabase : schéma + règles RLS (voir [database/README.md](database/README.md))
-- [ ] **Bloc 4** — Parcours d'inscription réel (tarif → formulaire → compte → rôle)
-- [ ] **Bloc 5** — Tableau de bord marchand sur vraies données
+- [x] **Bloc 4** — Parcours d'inscription réel (compte, connexion, accès protégé)
+- [~] **Bloc 5** — Données réelles : annuaire branché, chat et bilan à suivre
 - [ ] **Bloc 6** — Tableau de bord agence + validation KYC
 - [ ] **Bloc 7** — Filtre anti-désintermédiation côté serveur
 - [ ] **Bloc 8** — Paiement réel (FedaPay / Kkiapay) et abonnements
-- [ ] **Bloc 9** — Admin, domaine, e-mails, mise en production
+- [ ] **Bloc 9** — Admin, domaine, mise en production
+
+### 🔴 Engagement à ne pas oublier : le service d'e-mails
+
+La confirmation d'adresse e-mail est **désactivée** sur `relais-hub` depuis le
+2026-09-05, pour pouvoir développer. Le service d'envoi intégré de Supabase est
+limité à quelques messages par heure : il bloquait toute inscription.
+
+**Avant la moindre ouverture à de vrais clients, il faut :**
+
+1. Brancher un service d'envoi (Resend ou Brevo, gratuits jusqu'à ~3 000 messages/mois)
+   dans Supabase → Project Settings → Authentication → SMTP Settings
+2. Réactiver **Confirm email** (Authentication → Sign In / Providers → Email)
+3. Vérifier qu'un compte créé depuis le formulaire reçoit bien son lien
+
+Sans ça, n'importe qui peut s'inscrire avec l'adresse e-mail d'un tiers, et
+« mot de passe oublié » ne fonctionne pour personne.
 
 ## Points d'attention connus
 
@@ -86,7 +102,9 @@ sur des données qui n'existent pas encore.
 3. **Aucun des deux formulaires d'inscription ne demande de mot de passe** — impossible
    de se reconnecter. À traiter au Bloc 4.
 4. **Le paiement de l'abonnement est factice** (`setTimeout` + `alert`). Bloc 8.
-5. **L'interface ne parle pas encore à la base.** Le schéma et les règles de sécurité
-   existent et sont testés, mais `public/app.js` tourne toujours sur des données
-   simulées. C'est le Bloc 4 qui fait la jonction.
+5. **L'annuaire lit la vraie base ; le chat, les commandes et le bilan sont encore
+   vides.** Envoyer un message est volontairement impossible tant que le filtre ne
+   tourne pas côté serveur (Bloc 7) : le privilège d'écriture sur `messages` est retiré.
 6. **Suppression de compte impossible en l'état** — voir [database/README.md](database/README.md).
+7. **Comptes de démonstration à supprimer avant l'ouverture** : `marchand@demo.relais`
+   et `agence@demo.relais`.
