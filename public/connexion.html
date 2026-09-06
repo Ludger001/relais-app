@@ -154,7 +154,7 @@
       }
 
       const { error } = await db.auth.resetPasswordForEmail(email, {
-        redirectTo: new URL('connexion.html', window.location.href).href
+        redirectTo: new URL('nouveau-mot-de-passe.html', window.location.href).href
       });
 
       if (error) {

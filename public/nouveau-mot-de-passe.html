@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nouveau mot de passe — Relais</title>
+  <meta name="robots" content="noindex">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="landing.css">
+</head>
+<body class="landing-body">
+
+  <header class="public-nav-header">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <div class="logo-icon-glow">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-text-group">
+          <span class="brand-title">RELAIS</span>
+          <span class="brand-sub">Sécurité du compte</span>
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <main class="section-container" style="max-width: 480px; padding-top: 4rem; padding-bottom: 6rem;">
+    <div class="auth-card-wrap">
+
+      <div class="auth-header-block">
+        <h1 class="auth-title">Choisissez un nouveau mot de passe</h1>
+        <p class="auth-subtitle" id="sous-titre">Vérification de votre lien…</p>
+      </div>
+
+      <!-- Le formulaire n'apparaît qu'une fois le lien vérifié -->
+      <form id="form-mot-de-passe" class="checkout-form" style="margin-top: 2rem;" hidden>
+
+        <div class="form-group">
+          <label for="mdp">Nouveau mot de passe *</label>
+          <input type="password" id="mdp" class="form-input" placeholder="Au moins 8 caractères"
+                 required minlength="8" autocomplete="new-password" autofocus>
+        </div>
+
+        <div class="form-group">
+          <label for="mdp-confirm">Confirmez le mot de passe *</label>
+          <input type="password" id="mdp-confirm" class="form-input" placeholder="Retapez le même"
+                 required minlength="8" autocomplete="new-password">
+        </div>
+
+        <div id="retour" class="form-feedback" hidden></div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-valider">
+          Enregistrer mon nouveau mot de passe
+        </button>
+      </form>
+
+      <!-- Affiché si le lien est absent, périmé ou déjà utilisé -->
+      <div id="lien-invalide" hidden>
+        <div class="form-feedback form-feedback-erreur" style="margin-top: 1.5rem;">
+          <strong>Ce lien n'est plus valable.</strong><br>
+          Les liens de réinitialisation expirent après un court délai, et ne servent
+          qu'une fois. Demandez-en un nouveau depuis la page de connexion.
+        </div>
+        <a href="connexion.html" class="btn btn-primary btn-block btn-lg" style="margin-top: 1rem; text-decoration: none;">
+          Retour à la connexion
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="lib/supabaseClient.js"></script>
+  <script>
+    const form = document.getElementById('form-mot-de-passe');
+    const invalide = document.getElementById('lien-invalide');
+    const sousTitre = document.getElementById('sous-titre');
+    const retour = document.getElementById('retour');
+    const bouton = document.getElementById('btn-valider');
+
+    function afficher(message, type) {
+      retour.hidden = false;
+      retour.className = `form-feedback form-feedback-${type}`;
+      retour.innerHTML = message;
+    }
+
+    function lienInvalide() {
+      sousTitre.textContent = 'Le lien que vous avez suivi ne permet pas de continuer.';
+      form.hidden = true;
+      invalide.hidden = false;
+    }
+
+    /**
+     * Supabase place un jeton de récupération dans l'adresse, et la librairie
+     * l'échange contre une session temporaire. Sans cette session, on ne peut
+     * pas changer le mot de passe — c'est ce qui empêche n'importe qui de le
+     * faire à la place du titulaire.
+     */
+    (async () => {
+      const parametres = new URLSearchParams(window.location.hash.slice(1));
+      const erreurDansLien = parametres.get('error_description') || parametres.get('error');
+
+      if (erreurDansLien) {
+        lienInvalide();
+        return;
+      }
+
+      // La librairie traite le jeton au chargement ; on lui laisse le temps
+      await new Promise(r => setTimeout(r, 400));
+
+      const session = await getSession();
+      if (!session) {
+        lienInvalide();
+        return;
+      }
+
+      sousTitre.textContent =
+        `Vous modifiez le mot de passe du compte ${session.user.email}.`;
+      form.hidden = false;
+    })();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      retour.hidden = true;
+
+      const mdp = document.getElementById('mdp').value;
+      const confirmation = document.getElementById('mdp-confirm').value;
+
+      if (mdp !== confirmation) {
+        afficher('Les deux mots de passe ne sont pas identiques.', 'erreur');
+        return;
+      }
+      if (mdp.length < 8) {
+        afficher('Le mot de passe doit contenir au moins 8 caractères.', 'erreur');
+        return;
+      }
+
+      bouton.disabled = true;
+      bouton.textContent = 'Enregistrement…';
+
+      const { error } = await db.auth.updateUser({ password: mdp });
+
+      if (error) {
+        afficher(messageErreur(error), 'erreur');
+        bouton.disabled = false;
+        bouton.textContent = 'Enregistrer mon nouveau mot de passe';
+        return;
+      }
+
+      afficher(
+        '<strong>Mot de passe enregistré.</strong><br>Ouverture de votre espace…',
+        'succes'
+      );
+      setTimeout(() => { window.location.href = 'app.html'; }, 1200);
+    });
+  </script>
+</body>
+</html>

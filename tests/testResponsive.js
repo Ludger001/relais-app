@@ -37,6 +37,10 @@ const PAGES = [
   { chemin: '/connexion.html',            nom: 'Connexion' },
   { chemin: '/inscription-marchand.html', nom: 'Inscription marchand' },
   { chemin: '/candidature-agence.html',   nom: 'Candidature agence' },
+  { chemin: '/nouveau-mot-de-passe.html', nom: 'Nouveau mot de passe' },
+  { chemin: '/conditions-generales.html', nom: 'Conditions générales' },
+  { chemin: '/politique-confidentialite.html', nom: 'Confidentialité' },
+  { chemin: '/charte-anti-fraude.html',   nom: 'Charte anti-fraude' },
   { chemin: '/app.html',                  nom: 'Application (marchand)',  compte: 'marchand@demo.relais' },
   { chemin: '/app.html',                  nom: 'Application (agence)',    compte: 'agence@demo.relais' }
 ];

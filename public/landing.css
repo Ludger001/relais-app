@@ -1779,3 +1779,137 @@ body.landing-body {
 
   .calculator-3d-card { padding: 1.5rem 1.15rem; }
 }
+
+/* =========================================================================== */
+/* PAGES LÉGALES — lecture longue, pas de décoration inutile                   */
+/* =========================================================================== */
+
+.legal-page {
+  max-width: 760px;
+  padding-top: 3rem;
+  padding-bottom: 6rem;
+}
+
+.legal-page h1 { margin-bottom: .3rem; }
+
+.legal-date {
+  font-size: .82rem;
+  color: var(--text-dim, #94a3b8);
+  margin: 0 0 2.5rem;
+}
+
+.legal-chapo {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--text-muted, #475569);
+  padding-left: 1rem;
+  border-left: 3px solid var(--primary, #059669);
+  margin-bottom: 2.5rem;
+}
+
+.legal-page h2 {
+  font-family: var(--font-display, sans-serif);
+  font-size: 1.3rem;
+  margin: 2.5rem 0 .8rem;
+  padding-bottom: .4rem;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.legal-page h3 {
+  font-size: 1.02rem;
+  margin: 1.6rem 0 .5rem;
+}
+
+.legal-page p,
+.legal-page li {
+  font-size: .93rem;
+  line-height: 1.75;
+  color: var(--text-muted, #475569);
+}
+
+.legal-page ul {
+  margin: 0 0 1rem;
+  padding-left: 1.3rem;
+}
+.legal-page li { margin-bottom: .45rem; }
+
+.legal-avertissement {
+  background: var(--warning-bg, #fffbeb);
+  border-left: 3px solid var(--warning, #d97706);
+  border-radius: 0 8px 8px 0;
+  padding: 1rem 1.2rem;
+  font-size: .87rem;
+  line-height: 1.65;
+  color: #92400e;
+  margin-bottom: 2.5rem;
+}
+
+.legal-reponse {
+  background: var(--primary-light, #ecfdf5);
+  border-left: 3px solid var(--primary, #059669);
+  border-radius: 0 8px 8px 0;
+  padding: .85rem 1.1rem;
+  margin: .6rem 0 1.4rem;
+}
+
+.legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0 1.5rem;
+  font-size: .88rem;
+}
+.legal-table th,
+.legal-table td {
+  text-align: left;
+  padding: .6rem .7rem;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+.legal-table th {
+  font-weight: 700;
+  color: var(--text-main, #0f172a);
+}
+
+.legal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  font-size: .88rem;
+  font-weight: 600;
+}
+
+/* Une table de trois colonnes ne tient pas sur 320px : elle défile dans son
+   cadre plutôt que d'élargir la page entière. */
+.legal-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1rem 0 1.5rem;
+  /* Sans min-width: 0, le conteneur adopte la largeur minimale de la table
+     et pousse la page entière au lieu de laisser défiler son contenu. */
+  min-width: 0;
+  max-width: 100%;
+}
+/* Plutôt que de forcer une largeur minimale — qui élargissait la page entière —
+   on laisse la table se répartir et les mots se couper. Une table de trois
+   colonnes courtes n'a pas besoin de défiler. */
+.legal-table-wrap .legal-table {
+  margin: 0;
+  min-width: 0;
+  width: 100%;
+  table-layout: fixed;
+}
+.legal-table-wrap .legal-table th,
+.legal-table-wrap .legal-table td {
+  overflow-wrap: break-word;
+}
+
+/* La page légale est un enfant direct de body, qui est un conteneur flex :
+   sans min-width: 0 elle refuse de descendre sous la largeur minimale de son
+   contenu le plus large — ici la table — et pousse la page. */
+.legal-page,
+.legal-page > * {
+  min-width: 0;
+  max-width: 100%;
+}

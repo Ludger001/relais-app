@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Politique de Confidentialité — Relais</title>
+  <meta name="description" content="Quelles données Relais collecte, pourquoi, combien de temps elles sont conservées, et comment exercer vos droits.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="landing.css">
+</head>
+<body class="landing-body">
+
+  <header class="public-nav-header">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <div class="logo-icon-glow">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-text-group">
+          <span class="brand-title">RELAIS</span>
+          <span class="brand-sub">Confidentialité</span>
+        </div>
+      </a>
+      <div class="nav-cta-group">
+        <a href="index.html" class="btn btn-outline-sm">← Retour à l'accueil</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="section-container legal-page">
+
+    <div class="legal-avertissement">
+      <strong>Document à faire relire par un juriste avant l'ouverture commerciale.</strong>
+      Il décrit fidèlement ce que la plateforme collecte et conserve réellement, mais n'a pas
+      été validé au regard des réglementations de protection des données des cinq pays
+      couverts.
+    </div>
+
+    <h1 class="auth-title">Politique de confidentialité</h1>
+    <p class="legal-date">Version du 6 septembre 2026</p>
+
+    <h2>1. Le point le plus important</h2>
+    <p>
+      Relais traite des données qui ne concernent pas seulement ses membres :
+      <strong>les coordonnées des clients finaux</strong> à qui les colis sont livrés. Ces
+      personnes ne sont pas inscrites sur Relais et n'ont pas de compte.
+    </p>
+    <p>
+      C'est l'e-commerçant qui les transmet, et c'est lui qui doit s'être assuré du droit de
+      le faire. Relais les conserve pour permettre la livraison et la preuve en cas de litige.
+    </p>
+
+    <h2>2. Données collectées</h2>
+
+    <h3>Sur les membres</h3>
+    <ul>
+      <li>Identité et coordonnées professionnelles : nom, adresse e-mail, téléphone, pays.</li>
+      <li>Informations d'entreprise : raison sociale, numéro d'enregistrement légal, ville,
+        zones couvertes, taille de flotte.</li>
+      <li>Pièces justificatives des agences : extrait d'enregistrement, pièce d'identité du
+        gérant.</li>
+      <li>Contenu des messages échangés sur la plateforme.</li>
+      <li>Historique des commandes, des statuts de livraison et des reversements.</li>
+      <li>Transactions d'abonnement.</li>
+    </ul>
+
+    <h3>Sur les clients finaux</h3>
+    <ul>
+      <li>Nom, numéro de téléphone, adresse de livraison, ville, instructions éventuelles.</li>
+    </ul>
+    <p>
+      Ces informations ne sont visibles que par l'e-commerçant qui les a saisies et par
+      l'agence chargée de la livraison correspondante. Aucun autre membre n'y a accès.
+    </p>
+
+    <h2>3. Pourquoi ces données</h2>
+    <ul>
+      <li><strong>Exécuter le service</strong> : sans le téléphone et l'adresse du
+        destinataire, aucune livraison n'est possible.</li>
+      <li><strong>Vérifier les agences</strong> : c'est ce qui protège les e-commerçants
+        contre les fausses agences.</li>
+      <li><strong>Établir la preuve</strong> : l'historique horodaté permet de trancher un
+        désaccord sur une livraison ou un reversement.</li>
+      <li><strong>Prévenir la fraude</strong> : les tentatives d'échange de coordonnées
+        directes sont enregistrées.</li>
+    </ul>
+
+    <h2>4. Messages : ce qui est conservé</h2>
+    <p>
+      Lorsqu'un message contient des coordonnées, la plateforme en affiche une version
+      masquée. <strong>Le texte d'origine est conservé</strong>, mais il n'est accessible ni
+      à son auteur, ni à son destinataire : seule l'équipe Relais peut le consulter, et
+      uniquement dans le cadre de l'instruction d'un signalement.
+    </p>
+
+    <h2>5. Qui a accès à quoi</h2>
+    <ul>
+      <li>Chaque membre accède à ses propres données et à celles des conversations auxquelles
+        il participe.</li>
+      <li>Une agence ne voit un e-commerçant que si une conversation les lie.</li>
+      <li>Un e-commerçant ne voit d'une agence que les informations publiées dans l'annuaire.</li>
+      <li>L'équipe Relais accède aux pièces justificatives et aux signalements de sécurité.</li>
+    </ul>
+    <p>
+      Ces séparations sont appliquées par la base de données elle-même, et non par
+      l'interface : elles ne peuvent pas être contournées depuis un navigateur.
+    </p>
+
+    <h2>6. Sous-traitants</h2>
+    <div class="legal-table-wrap">
+    <table class="legal-table">
+      <thead><tr><th>Prestataire</th><th>Rôle</th><th>Localisation</th></tr></thead>
+      <tbody>
+        <tr><td>Supabase</td><td>Base de données, comptes, stockage des pièces</td><td>Union européenne (Francfort)</td></tr>
+        <tr><td>Vercel</td><td>Hébergement des pages</td><td>Réseau mondial</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>
+      Les données sont hébergées dans l'Union européenne. Aucune donnée n'est vendue ni
+      cédée à des fins publicitaires.
+    </p>
+
+    <h2>7. Durée de conservation</h2>
+    <ul>
+      <li><strong>Compte actif</strong> : tant que l'abonnement est en cours.</li>
+      <li><strong>Commandes, messages et points financiers</strong> : conservés après la
+        clôture d'un compte, car ils constituent la preuve d'opérations commerciales entre
+        deux tiers. Une partie ne peut pas faire disparaître un historique qui engage l'autre.</li>
+      <li><strong>Pièces justificatives des agences</strong> : conservées le temps de la
+        certification, puis pendant la durée nécessaire à la justification de celle-ci.</li>
+    </ul>
+
+    <h2>8. Vos droits</h2>
+    <p>
+      Vous pouvez demander l'accès à vos données, leur rectification, ou la clôture de votre
+      compte.
+    </p>
+    <p>
+      La clôture entraîne l'<strong>anonymisation</strong> de votre profil : votre identité
+      et vos coordonnées sont effacées, tandis que les opérations commerciales — commandes,
+      montants, statuts — sont conservées sous une forme qui ne vous identifie plus. C'est ce
+      qui permet à votre ancien partenaire de conserver ses propres preuves.
+    </p>
+    <p>
+      <em>Adresse d'exercice des droits à renseigner avant la mise en service.</em>
+    </p>
+
+    <h2>9. Cookies</h2>
+    <p>
+      Relais n'utilise <strong>aucun cookie publicitaire ni traceur d'audience</strong>. Seul
+      un espace de stockage local du navigateur conserve votre session de connexion, afin de
+      ne pas vous redemander votre mot de passe à chaque page.
+    </p>
+
+    <div class="legal-nav">
+      <a href="conditions-generales.html">Conditions générales →</a>
+      <a href="charte-anti-fraude.html">Charte anti-fraude →</a>
+    </div>
+
+  </main>
+</body>
+</html>
