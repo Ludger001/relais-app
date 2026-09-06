@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion — Relais</title>
+  <meta name="description" content="Connectez-vous à votre espace Relais : annuaire des agences COD vérifiées, chat sécurisé, ordres de livraison et point financier.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="landing.css">
+</head>
+<body class="landing-body">
+
+  <header class="public-nav-header">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <div class="logo-icon-glow">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-text-group">
+          <span class="brand-title">RELAIS</span>
+          <span class="brand-sub">Accès Membre</span>
+        </div>
+      </a>
+      <div class="nav-cta-group">
+        <a href="index.html" class="btn btn-outline-sm">← Retour à l'accueil</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="section-container" style="max-width: 480px; padding-top: 4rem; padding-bottom: 6rem;">
+    <div class="auth-card-wrap">
+
+      <div class="auth-header-block">
+        <div class="tier-badge" style="display: inline-block;">ESPACE MEMBRE</div>
+        <h1 class="auth-title">Connexion à votre espace</h1>
+        <p class="auth-subtitle">Retrouvez vos agences, vos conversations et votre point financier.</p>
+      </div>
+
+      <form id="login-form" class="checkout-form" style="margin-top: 2rem;">
+
+        <div class="form-group">
+          <label for="login-email">Adresse e-mail *</label>
+          <input type="email" id="login-email" class="form-input" placeholder="votre@email.com" required autocomplete="email" autofocus>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">Mot de passe *</label>
+          <input type="password" id="login-password" class="form-input" placeholder="Votre mot de passe" required autocomplete="current-password">
+        </div>
+
+        <div id="login-feedback" class="form-feedback" hidden></div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-login">
+          Me connecter
+        </button>
+
+        <p class="form-hint" style="text-align:center; margin-top:0.75rem;">
+          <a href="#" id="lien-mot-de-passe-oublie">Mot de passe oublié ?</a>
+        </p>
+      </form>
+
+      <hr class="summary-divider" style="margin: 2rem 0;">
+
+      <p class="form-hint" style="text-align:center;">
+        Pas encore de compte ?<br>
+        <a href="inscription-marchand.html">Je suis e-commerçant</a>
+        &nbsp;·&nbsp;
+        <a href="candidature-agence.html">Je suis une agence de livraison</a>
+      </p>
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="lib/supabaseClient.js"></script>
+  <script>
+    const form = document.getElementById('login-form');
+    const bouton = document.getElementById('btn-login');
+    const retour = document.getElementById('login-feedback');
+
+    function afficher(message, type) {
+      retour.hidden = false;
+      retour.className = `form-feedback form-feedback-${type}`;
+      retour.innerHTML = message;
+    }
+
+    function verrouiller(actif, texte) {
+      bouton.disabled = actif;
+      bouton.style.opacity = actif ? '0.65' : '1';
+      bouton.style.cursor = actif ? 'wait' : '';
+      bouton.textContent = texte;
+    }
+
+    // Déjà connecté ? On ne fait pas retaper son mot de passe.
+    (async () => {
+      const session = await getSession();
+      if (session) window.location.href = 'app.html';
+    })();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      retour.hidden = true;
+      verrouiller(true, 'Connexion en cours…');
+
+      const email = document.getElementById('login-email').value.trim();
+      const motDePasse = document.getElementById('login-password').value;
+
+      const { data, error } = await db.auth.signInWithPassword({ email, password: motDePasse });
+
+      if (error) {
+        afficher(messageErreur(error), 'erreur');
+        verrouiller(false, 'Me connecter');
+        return;
+      }
+
+      // Le compte existe, mais son profil n'a pas pu être créé à l'inscription
+      const profil = await getMonProfil();
+      if (!profil) {
+        afficher(
+          `Votre compte existe, mais son profil est incomplet et nous ne pouvons pas
+           ouvrir votre espace. Contactez le support en précisant votre adresse e-mail.`,
+          'erreur'
+        );
+        await db.auth.signOut();
+        verrouiller(false, 'Me connecter');
+        return;
+      }
+
+      if (!profil.is_active) {
+        afficher('Ce compte a été désactivé. Contactez le support.', 'erreur');
+        await db.auth.signOut();
+        verrouiller(false, 'Me connecter');
+        return;
+      }
+
+      window.location.href = 'app.html';
+    });
+
+    document.getElementById('lien-mot-de-passe-oublie').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+
+      if (!email) {
+        afficher('Saisissez d\'abord votre adresse e-mail ci-dessus, puis recliquez sur ce lien.', 'erreur');
+        document.getElementById('login-email').focus();
+        return;
+      }
+
+      const { error } = await db.auth.resetPasswordForEmail(email, {
+        redirectTo: new URL('connexion.html', window.location.href).href
+      });
+
+      if (error) {
+        afficher(messageErreur(error), 'erreur');
+        return;
+      }
+      afficher(
+        `Si un compte Relais existe pour <strong>${email}</strong>, un lien de
+         réinitialisation vient d'y être envoyé.`,
+        'succes'
+      );
+    });
+  </script>
+</body>
+</html>

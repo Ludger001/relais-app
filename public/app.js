@@ -82,6 +82,7 @@ const state = {
   currentCountryFilter: 'ALL',
   selectedAgencyId: 'agency-ci-1',
   currentPeriod: 'today', // 'today', 'yesterday', '7d', '30d', 'all'
+  profile: null,          // profil Supabase du membre connecte
   
   // Agences dans les 5 pays de lancement
   agencies: [
@@ -290,7 +291,14 @@ const state = {
 };
 
 // 2. INITIALISATION AU CHARGEMENT DU DOM
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Aucune donnee ne s'affiche avant de savoir qui est connecte.
+  // exigerConnexion() redirige vers connexion.html s'il n'y a pas de session.
+  const profil = await exigerConnexion();
+  if (!profil) return;
+
+  appliquerProfil(profil);
+
   renderAgencies();
   setupRoleSwitcher();
   setupTabNavigation();
@@ -299,7 +307,55 @@ document.addEventListener('DOMContentLoaded', () => {
   setupOrdersAndFinance();
   setupAdminPanel();
   setupModals();
+  renderFinanceView();
 });
+
+/**
+ * Le role vient desormais du compte connecte, plus d'un bouton.
+ */
+function appliquerProfil(profil) {
+  state.profile = profil;
+  state.currentRole = profil.role;
+
+  const nom = document.getElementById('session-name');
+  const role = document.getElementById('session-role');
+  const bloc = document.getElementById('session-identity');
+
+  if (nom) nom.textContent = profil.full_name || profil.email;
+  if (role) {
+    role.textContent = {
+      merchant: 'E-commerçant',
+      agency: 'Agence de livraison',
+      admin: 'Administrateur'
+    }[profil.role] || profil.role;
+  }
+  if (bloc) bloc.hidden = false;
+
+  // L'onglet SuperAdmin n'existe que pour un administrateur
+  const ongletAdmin = document.getElementById('tab-btn-admin');
+  if (ongletAdmin) ongletAdmin.style.display = profil.role === 'admin' ? 'flex' : 'none';
+
+  // Bandeau d'abonnement
+  const pastille = document.getElementById('sub-status-text');
+  if (pastille) {
+    if (profil.role === 'merchant') {
+      pastille.textContent = profil.merchant?.store_name || 'Espace marchand';
+    } else if (profil.role === 'agency') {
+      const statuts = {
+        pending_verification: 'Dossier en cours de vérification',
+        verified: 'Agence certifiée',
+        rejected: 'Dossier refusé',
+        suspended: 'Compte suspendu'
+      };
+      pastille.textContent = statuts[profil.agency?.status] || 'Espace agence';
+    } else {
+      pastille.textContent = 'SuperAdmin';
+    }
+  }
+
+  const deconnexion = document.getElementById('btn-logout');
+  if (deconnexion) deconnexion.addEventListener('click', seDeconnecter);
+}
 
 // =============================================================================
 // GESTION DE L'ANNUAIRE & DES FILTRES

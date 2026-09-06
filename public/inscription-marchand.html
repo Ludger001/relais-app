@@ -47,19 +47,19 @@
       <div class="checkout-layout">
         <!-- FORMULAIRE GAUCHE -->
         <div class="checkout-form-side">
-          <form id="merchant-registration-form" class="checkout-form" onsubmit="handleMerchantSubmit(event)">
-            
+          <form id="merchant-registration-form" class="checkout-form">
+
             <h3 class="form-section-title">1. Vos Informations Professionnelles</h3>
-            
+
             <div class="form-group">
               <label for="merchant-name">Nom complet du dirigeant *</label>
-              <input type="text" id="merchant-name" class="form-input" placeholder="Ex: Amidou Traoré" required value="Amidou Traoré">
+              <input type="text" id="merchant-name" class="form-input" placeholder="Ex: Amidou Traoré" required autocomplete="name">
             </div>
 
             <div class="form-row">
               <div class="form-group">
                 <label for="merchant-store">Nom de votre boutique / marque *</label>
-                <input type="text" id="merchant-store" class="form-input" placeholder="Ex: Body Revenge / Glow Beauty" required value="Glow Beauty Store">
+                <input type="text" id="merchant-store" class="form-input" placeholder="Ex: Body Revenge / Glow Beauty" required>
               </div>
               <div class="form-group">
                 <label for="merchant-country">Votre pays de base *</label>
@@ -76,20 +76,36 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="merchant-email">Adresse email professionnelle *</label>
-                <input type="email" id="merchant-email" class="form-input" placeholder="Ex: amidou@glowbeauty.com" required value="contact@glowbeauty.com">
+                <input type="email" id="merchant-email" class="form-input" placeholder="Ex: amidou@glowbeauty.com" required autocomplete="email">
               </div>
               <div class="form-group">
                 <label for="merchant-phone">Téléphone (Format national à jour) *</label>
-                <input type="text" id="merchant-phone" class="form-input" placeholder="Ex: 01 67 53 57 41" required value="01 67 53 57 41">
+                <input type="text" id="merchant-phone" class="form-input" placeholder="Ex: 01 67 53 57 41" required autocomplete="tel">
               </div>
             </div>
 
             <div class="form-group">
               <label for="merchant-products">Catégories de produits vendus *</label>
-              <input type="text" id="merchant-products" class="form-input" placeholder="Ex: Cosmétiques, Soins du visage, Bien-être" required value="Cosmétiques & Soins du visage">
+              <input type="text" id="merchant-products" class="form-input" placeholder="Ex: Cosmétiques, Soins du visage, Bien-être" required>
             </div>
 
-            <h3 class="form-section-title" style="margin-top: 1.5rem;">2. Règlement de l'Abonnement (Mobile Money)</h3>
+            <h3 class="form-section-title" style="margin-top: 1.5rem;">2. Votre Mot de Passe</h3>
+            <p class="form-hint">C'est avec lui que vous retrouverez votre espace. 8 caractères minimum.</p>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="merchant-password">Mot de passe *</label>
+                <input type="password" id="merchant-password" class="form-input" placeholder="Au moins 8 caractères" required minlength="8" autocomplete="new-password">
+              </div>
+              <div class="form-group">
+                <label for="merchant-password-confirm">Confirmez le mot de passe *</label>
+                <input type="password" id="merchant-password-confirm" class="form-input" placeholder="Retapez le même" required minlength="8" autocomplete="new-password">
+              </div>
+            </div>
+
+            <h3 class="form-section-title" style="margin-top: 1.5rem;">3. Votre Moyen de Paiement Habituel</h3>
+            <p class="form-hint">⚠️ Aucun débit n'est effectué aujourd'hui. Le paiement de l'abonnement
+            sera activé prochainement ; nous enregistrons simplement votre opérateur préféré.</p>
             <div class="momo-selection-grid">
               <label class="momo-radio-card active">
                 <input type="radio" name="momo-provider" value="wave" checked>
@@ -114,13 +130,19 @@
             </div>
 
             <div class="form-checkbox-wrap">
-              <input type="checkbox" id="merchant-terms" required checked>
+              <input type="checkbox" id="merchant-terms" required>
               <label for="merchant-terms">J'accepte les CGU de Relais et l'interdiction formelle de contournement du chat sécurisé.</label>
             </div>
 
+            <div id="merchant-feedback" class="form-feedback" hidden></div>
+
             <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-submit-merchant">
-              Payer 10 000 FCFA & Ouvrir Mon Espace
+              Créer mon compte e-commerçant
             </button>
+
+            <p class="form-hint" style="text-align:center; margin-top:1rem;">
+              Vous avez déjà un compte ? <a href="connexion.html">Se connecter</a>
+            </p>
           </form>
         </div>
 
@@ -159,18 +181,32 @@
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="lib/supabaseClient.js"></script>
+  <script src="lib/inscription.js"></script>
   <script>
-    function handleMerchantSubmit(e) {
-      e.preventDefault();
-      const btn = document.getElementById('btn-submit-merchant');
-      btn.textContent = 'Traitement du débit Mobile Money en cours...';
-      btn.style.opacity = '0.7';
-
-      setTimeout(() => {
-        alert('Succès ! Votre souscription de 10 000 FCFA a été validée avec succès. Bienvenue sur votre espace opérationnel Relais !');
-        window.location.href = 'app.html';
-      }, 1500);
-    }
+    brancherInscription({
+      formId: 'merchant-registration-form',
+      boutonId: 'btn-submit-merchant',
+      retourId: 'merchant-feedback',
+      libelleBouton: 'Créer mon compte e-commerçant',
+      champs: {
+        email: 'merchant-email',
+        motDePasse: 'merchant-password',
+        confirmation: 'merchant-password-confirm',
+        nomComplet: 'merchant-name',
+        pays: 'merchant-country'
+      },
+      construireMetadonnees: () => ({
+        role: 'merchant',
+        store_name: document.getElementById('merchant-store').value.trim(),
+        phone: document.getElementById('merchant-phone').value.trim(),
+        product_categories: document.getElementById('merchant-products').value
+          .split(/[,;]/).map(s => s.trim()).filter(Boolean),
+        preferred_payment_operator:
+          document.querySelector('input[name="momo-provider"]:checked')?.value || null
+      })
+    });
   </script>
 </body>
 </html>

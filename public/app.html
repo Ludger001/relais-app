@@ -28,8 +28,10 @@
         </div>
       </a>
 
-      <!-- SÉLECTEUR DE VUE & RÔLE -->
-      <div class="role-switcher">
+      <!-- SÉLECTEUR DE RÔLE — outil de démonstration uniquement.
+           Le rôle réel vient du compte connecté ; ce bloc reste masqué
+           tant qu'on ne l'active pas explicitement (voir app.js). -->
+      <div class="role-switcher" id="role-switcher" hidden>
         <span class="role-label">Mode :</span>
         <button class="role-btn active" data-role="merchant" id="btn-role-merchant">
           <span class="role-dot"></span> E-commerçant
@@ -46,7 +48,14 @@
       <div class="header-actions">
         <div class="subscription-pill active" id="sub-status-pill">
           <span class="pulse-indicator"></span>
-          <span id="sub-status-text">Pass Marchand Actif</span>
+          <span id="sub-status-text">Chargement…</span>
+        </div>
+        <div class="session-identity" id="session-identity" hidden>
+          <div>
+            <div class="session-name" id="session-name"></div>
+            <div class="session-role" id="session-role"></div>
+          </div>
+          <button type="button" class="btn-logout" id="btn-logout">Déconnexion</button>
         </div>
         <a href="index.html" class="btn btn-outline-sm" style="text-decoration: none;">Accueil</a>
       </div>
@@ -444,6 +453,8 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="lib/supabaseClient.js"></script>
   <script src="lib/antiBypassFilter.js"></script>
   <script src="app.js"></script>
 </body>
