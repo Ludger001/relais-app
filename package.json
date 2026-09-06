@@ -8,7 +8,8 @@
     "test": "node tests/testAntiBypass.js && node tests/testFiltreSynchronise.js && node tests/testRoles.js && node tests/testAffichageVide.js",
     "test:responsive": "node tests/testResponsive.js",
     "test:chat": "node tests/testChatServeur.js",
-    "filtre:generer": "node scripts/genererFiltreServeur.js"
+    "filtre:generer": "node scripts/genererFiltreServeur.js",
+    "test:commande": "node tests/testCycleCommande.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

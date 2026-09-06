@@ -1799,3 +1799,102 @@ img, svg, video {
   .partner-name { font-size: 1rem; }
   .partner-meta { font-size: 0.78rem; }
 }
+
+/* =========================================================================== */
+/* BON DE COMMANDE DANS LE FIL DE DISCUSSION                                   */
+/*                                                                             */
+/* Il ne ressemble volontairement pas à un message : ce n'en est pas un. Les    */
+/* coordonnées du client y figurent en clair parce qu'elles viennent de la      */
+/* table `orders`, réservée aux deux participants — elles n'ont jamais          */
+/* traversé la messagerie, donc jamais le filtre.                              */
+/* =========================================================================== */
+
+.order-card-wrap {
+  align-self: stretch;
+  width: 100%;
+  margin: 0.75rem 0;
+}
+
+.order-card-bubble {
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(5, 150, 105, 0.35);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: 0.95rem 1.1rem;
+  max-width: 100%;
+  box-shadow: var(--shadow-sm);
+  color: var(--text-main);
+}
+
+.order-card-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.92rem;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.order-card-line {
+  font-size: 0.85rem;
+  line-height: 1.65;
+}
+
+.order-card-recipient {
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed var(--border-color);
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+.order-card-subtitle {
+  font-weight: 800;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.order-card-note {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+.order-card-footer {
+  margin-top: 0.7rem;
+}
+
+/* =========================================================================== */
+/* TRONCATURE DE LA LISTE DES CONVERSATIONS                                    */
+/*                                                                             */
+/* .conv-name et .conv-last-msg sont en white-space: nowrap. Sans min-width:0  */
+/* ni overflow, un message un peu long impose sa largeur entière à la barre    */
+/* latérale — mesuré à 589px pour un seul message masqué — et la page entière  */
+/* s'élargit derrière. Le texte doit être coupé, pas repousser la mise en page.*/
+/* =========================================================================== */
+
+.conv-item,
+.conv-info,
+.conv-name-row {
+  min-width: 0;
+}
+
+.conv-name,
+.conv-last-msg {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-conversations-sidebar,
+.conversations-list,
+.chat-main-window,
+.chat-header-bar,
+.mini-orders-strip,
+.chat-input-bar {
+  min-width: 0;
+}

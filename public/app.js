@@ -196,6 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await chargerAgences();
   await chargerConversations();
+  await chargerCommandes();
   await chargerJournalSecurite();
 
   renderAgencies();
@@ -581,6 +582,65 @@ async function chargerConversations() {
   }
 }
 
+const STATUTS_BASE_VERS_ECRAN = {
+  pending_pickup: 'pending',
+  in_transit:     'in_transit',
+  delivered:      'delivered',
+  failed_attempt: 'failed',
+  cancelled:      'cancelled',
+  returned:       'returned'
+};
+
+const STATUTS_ECRAN_VERS_BASE = {
+  pending:    'pending_pickup',
+  in_transit: 'in_transit',
+  delivered:  'delivered',
+  failed:     'failed_attempt',
+  cancelled:  'cancelled',
+  returned:   'returned'
+};
+
+/**
+ * Charge les commandes depuis la base.
+ *
+ * Le téléphone et l'adresse du client destinataire vivent ici, pas dans les
+ * messages : la table `orders` est réservée aux deux participants par RLS, et
+ * ces coordonnées ne traversent donc jamais le filtre du chat — qui les
+ * masquerait, alors qu'elles sont précisément ce que l'agence doit recevoir.
+ */
+async function chargerCommandes() {
+  const { data, error } = await db
+    .from('orders')
+    .select('id, order_code, conversation_id, merchant_id, agency_id, product_name, quantity, cod_amount, delivery_fee, recipient_name, recipient_phone, recipient_address, recipient_city, delivery_instructions, status, payout_status, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('[Relais] Commandes indisponibles :', error.message);
+    state.orders = [];
+    return;
+  }
+
+  state.orders = (data || []).map(o => ({
+    id: o.order_code,
+    uuid: o.id,
+    conversationId: o.conversation_id,
+    agencyId: o.agency_id,
+    merchantId: o.merchant_id,
+    productName: o.product_name,
+    qty: o.quantity,
+    codAmount: Number(o.cod_amount) || 0,
+    deliveryFee: Number(o.delivery_fee) || 0,
+    recipientName: o.recipient_name,
+    recipientPhone: o.recipient_phone,
+    recipientCity: o.recipient_city,
+    recipientAddress: o.recipient_address,
+    instructions: o.delivery_instructions,
+    status: STATUTS_BASE_VERS_ECRAN[o.status] || o.status,
+    payoutStatus: o.payout_status === 'paid' ? 'paid' : 'unpaid',
+    createdAt: new Date(o.created_at)
+  }));
+}
+
 async function completerAgencesDesConversations(agencyIds) {
   const manquantes = agencyIds.filter(id => !state.agencies.some(a => a.id === id));
   if (manquantes.length === 0) return;
@@ -635,6 +695,7 @@ async function chargerMessages(agencyId) {
     id: m.id,
     sender: m.sender_id === state.profile.id ? state.currentRole : 'autre',
     time: formatOrderDate(new Date(m.created_at)),
+    dateBrute: new Date(m.created_at),
     text: m.filtered_content,
     hasViolation: m.has_contact_leak_attempt
   }));
@@ -689,10 +750,28 @@ function renderActiveChat() {
 
   if (!container) return;
 
-  const msgs = state.conversations[agency.id] || [];
+  // Le fil mélange deux natures d'éléments : les messages, filtrés, et les
+  // bons de commande, qui ne passent pas par le filtre puisqu'ils voyagent
+  // par la table `orders`. C'est ce qui permet au téléphone du client
+  // d'arriver intact chez l'agence sans jamais transiter par la messagerie.
+  const conversationId = state.conversationIds[agency.id];
 
-  container.innerHTML = msgs.map(m => {
-    const isSent = (state.currentRole === 'merchant' && m.sender === 'merchant') || 
+  const elements = [
+    ...(state.conversations[agency.id] || []).map(m => ({
+      type: 'message',
+      date: m.dateBrute || new Date(0),
+      donnees: m
+    })),
+    ...state.orders
+      .filter(o => o.conversationId === conversationId)
+      .map(o => ({ type: 'commande', date: o.createdAt, donnees: o }))
+  ].sort((a, b) => a.date - b.date);
+
+  container.innerHTML = elements.map(el => {
+    if (el.type === 'commande') return carteCommande(el.donnees);
+
+    const m = el.donnees;
+    const isSent = (state.currentRole === 'merchant' && m.sender === 'merchant') ||
                    (state.currentRole === 'agency' && m.sender === 'agency');
     return `
       <div class="message-bubble-wrap ${isSent ? 'sent' : 'received'}">
@@ -742,6 +821,44 @@ function renderOrdersStrip() {
   `).join('');
 }
 
+/**
+ * Le bon de commande tel qu'il apparaît dans le fil de discussion.
+ *
+ * Les coordonnées du destinataire sont affichées en clair — c'est légitime
+ * et c'est même le but : sans elles l'agence ne peut pas livrer. Elles
+ * viennent de la table `orders`, que RLS réserve aux deux participants, et
+ * non d'un message qui aurait été masqué par le filtre.
+ */
+function carteCommande(order) {
+  const net = order.codAmount - order.deliveryFee;
+  return `
+    <div class="message-bubble-wrap order-card-wrap">
+      <div class="bubble order-card-bubble">
+        <div class="order-card-title">📦 Ordre de livraison COD — ${order.id}</div>
+        <div class="order-card-line">${order.productName} <span style="opacity:.7">× ${order.qty}</span></div>
+        <div class="order-card-line">
+          Cash à encaisser : <strong>${order.codAmount.toLocaleString()} FCFA</strong>
+          &nbsp;·&nbsp; Frais agence : ${order.deliveryFee.toLocaleString()} FCFA
+        </div>
+        <div class="order-card-line">Net à reverser : <strong>${net.toLocaleString()} FCFA</strong></div>
+
+        <div class="order-card-recipient">
+          <div class="order-card-subtitle">Destinataire</div>
+          <div>${order.recipientName}</div>
+          <div>📞 <strong>${order.recipientPhone}</strong></div>
+          <div>📍 ${order.recipientAddress}, ${order.recipientCity}</div>
+          <div class="order-card-note">Coordonnées transmises par Relais pour cette livraison uniquement.</div>
+        </div>
+
+        <div class="order-card-footer">
+          <span class="order-badge ${order.status}">${formatStatus(order.status)}</span>
+        </div>
+      </div>
+      <span class="msg-time">${formatOrderDate(order.createdAt)}</span>
+    </div>
+  `;
+}
+
 function formatStatus(status) {
   switch (status) {
     case 'delivered': return 'Livré & Encaissé';
@@ -755,48 +872,54 @@ function formatStatus(status) {
 
 function setupOrdersAndFinance() {
   const orderForm = document.getElementById('order-create-form');
-  orderForm?.addEventListener('submit', (e) => {
+  const boutonValider = orderForm?.querySelector('button[type="submit"]');
+
+  orderForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const newOrder = {
-      id: `REL-CMD-${Math.floor(1000 + Math.random() * 9000)}`,
-      agencyId: state.selectedAgencyId,
-      productName: document.getElementById('order-product-name').value,
-      qty: parseInt(document.getElementById('order-product-qty').value, 10),
-      codAmount: parseFloat(document.getElementById('order-cod-amount').value),
-      deliveryFee: parseFloat(document.getElementById('order-delivery-fee').value),
-      recipientName: document.getElementById('order-recipient-name').value,
-      recipientPhone: document.getElementById('order-recipient-phone').value,
-      recipientCity: document.getElementById('order-recipient-city').value,
-      recipientAddress: document.getElementById('order-recipient-address').value,
-      status: 'pending',
-      payoutStatus: 'unpaid',
-      createdAt: new Date()
-    };
+    const conversationId = state.conversationIds[state.selectedAgencyId];
+    if (!conversationId || !state.profile?.merchant?.id) {
+      alert("Ouvrez d'abord une conversation avec une agence depuis l'annuaire.");
+      return;
+    }
 
-    // Ajouter la commande
-    state.orders.unshift(newOrder);
+    const libelleInitial = boutonValider?.textContent;
+    if (boutonValider) {
+      boutonValider.disabled = true;
+      boutonValider.textContent = 'Enregistrement…';
+    }
 
-    // Injecter une carte de confirmation de commande dans le chat
-    const activeMessages = state.conversations[state.selectedAgencyId] || [];
-    activeMessages.push({
-      id: Date.now(),
-      sender: 'merchant',
-      time: 'À l\'instant',
-      text: `📦 <strong>NOUVEL ORDRE DE LIVRAISON COD [${newOrder.id}]</strong><br>` +
-            `Produit : ${newOrder.productName} (x${newOrder.qty})<br>` +
-            `Montant cash à encaisser : <strong>${newOrder.codAmount.toLocaleString()} FCFA</strong><br>` +
-            `Frais agence : ${newOrder.deliveryFee.toLocaleString()} FCFA<br>` +
-            `<br><strong>Destinataire</strong><br>` +
-            `${newOrder.recipientName}<br>` +
-            `📞 <strong>${newOrder.recipientPhone}</strong><br>` +
-            `📍 ${newOrder.recipientAddress}, ${newOrder.recipientCity}<br>` +
-            `<em style="opacity:.75">Coordonnées transmises par Relais pour cette livraison uniquement.</em>`,
-      isOrderCard: true
+    // La référence est posée par la base (défaut reference_commande) : deux
+    // marchands qui commandent au même instant ne peuvent pas se télescoper.
+    const { error } = await db.from('orders').insert({
+      conversation_id: conversationId,
+      merchant_id: state.profile.merchant.id,
+      agency_id: state.selectedAgencyId,
+      product_name: document.getElementById('order-product-name').value.trim(),
+      quantity: parseInt(document.getElementById('order-product-qty').value, 10) || 1,
+      cod_amount: parseFloat(document.getElementById('order-cod-amount').value) || 0,
+      delivery_fee: parseFloat(document.getElementById('order-delivery-fee').value) || 0,
+      recipient_name: document.getElementById('order-recipient-name').value.trim(),
+      recipient_phone: document.getElementById('order-recipient-phone').value.trim(),
+      recipient_address: document.getElementById('order-recipient-address').value.trim(),
+      recipient_city: document.getElementById('order-recipient-city').value.trim()
     });
 
-    // Fermer modal et rafraîchir
+    if (boutonValider) {
+      boutonValider.disabled = false;
+      boutonValider.textContent = libelleInitial;
+    }
+
+    if (error) {
+      console.error('[Relais] Commande refusée :', error.message);
+      alert("La commande n'a pas pu être enregistrée. Vérifiez les champs et réessayez.");
+      return;
+    }
+
     document.getElementById('modal-order-create').style.display = 'none';
+    orderForm.reset();
+
+    await chargerCommandes();
     renderActiveChat();
     renderOrdersStrip();
     renderFinanceView();
@@ -917,36 +1040,39 @@ function renderFinanceView() {
   });
 }
 
-// L'agence clôture sa tournée : c'est ce geste qui alimente tout le bilan financier
-function updateOrderStatus(orderId, newStatus) {
-  const order = state.orders.find(o => o.id === orderId);
+/**
+ * L'agence clôture sa tournée : c'est ce geste qui alimente tout le bilan.
+ *
+ * L'écriture part en base. Un déclencheur y vérifie que seule l'agence en
+ * charge peut faire évoluer la livraison, pose `delivered_at`, et consigne
+ * le changement dans order_status_logs — la trace qui tranchera un litige.
+ */
+async function updateOrderStatus(orderCode, nouveauStatutEcran) {
+  const order = state.orders.find(o => o.id === orderCode);
   if (!order) return;
 
-  const previous = order.status;
-  order.status = newStatus;
+  const statutBase = STATUTS_ECRAN_VERS_BASE[nouveauStatutEcran];
+  if (!statutBase) return;
 
-  // Trace pour l'audit (table order_status_logs côté base)
-  state.securityLogs = state.securityLogs || [];
+  const { error } = await db
+    .from('orders')
+    .update({ status: statutBase })
+    .eq('id', order.uuid);
 
-  const messages = state.conversations[order.agencyId] || [];
-  messages.push({
-    id: Date.now(),
-    sender: 'agency',
-    time: 'À l\'instant',
-    text: newStatus === 'delivered'
-      ? `✅ <strong>[${order.id}] Livrée et encaissée.</strong><br>` +
-        `${order.codAmount.toLocaleString()} FCFA collectés chez ${order.recipientName}.<br>` +
-        `Net à reverser sur cette commande : <strong>${(order.codAmount - order.deliveryFee).toLocaleString()} FCFA</strong>.`
-      : `✖ <strong>[${order.id}] Tentative de livraison échouée.</strong><br>` +
-        `Client injoignable ou refus. Aucun encaissement. Le colis reste en attente d'instruction.`
-  });
-  state.conversations[order.agencyId] = messages;
+  if (error) {
+    console.error('[Relais] Clôture refusée :', error.message);
+    alert(
+      error.message.includes('agence en charge')
+        ? "Seule l'agence en charge de cette livraison peut la clôturer."
+        : "Le statut n'a pas pu être mis à jour. Réessayez dans un instant."
+    );
+    return;
+  }
 
-  console.log(`[Relais] Commande ${orderId} : ${previous} → ${newStatus}`);
-
-  renderActiveChat();
+  await chargerCommandes();
   renderOrdersStrip();
   renderFinanceView();
+  renderActiveChat();
 }
 
 // =============================================================================

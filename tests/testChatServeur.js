@@ -54,11 +54,15 @@ async function session(email) {
   await page.click('#tab-btn-chat');
   await page.waitForTimeout(800);
 
+  // On ne regarde QUE les bulles de message. Les bons de commande affichent
+  // volontairement le téléphone du client : ils ne passent pas par la
+  // messagerie, donc pas par le filtre, et c'est tout l'intérêt du dispositif.
   const messagesAffiches = await page.evaluate(() =>
-    [...document.querySelectorAll('#messages-stream .bubble')].map(b => b.textContent.trim())
+    [...document.querySelectorAll('#messages-stream .bubble:not(.order-card-bubble)')]
+      .map(b => b.textContent.trim())
   );
   verifier('des messages sont chargés', messagesAffiches.length > 0, `${messagesAffiches.length} message(s)`);
-  verifier('aucun numéro visible en clair',
+  verifier('aucun numéro en clair dans les messages',
     !messagesAffiches.some(m => /\d{2}\s\d{2}\s\d{2}\s\d{2}/.test(m)));
 
   // --- 2. Envoyer un numéro depuis l'interface ---

@@ -14,8 +14,8 @@ collecté, et bouclier anti-désintermédiation.
 le chat — messages filtrés côté serveur, enregistrés en base, relus depuis la base.
 L'application est fermée aux visiteurs et le rôle vient du profil, plus d'un bouton.
 
-**Ce qui ne l'est pas encore :** les commandes et le bilan financier tournent toujours
-sur des données simulées. Le paiement de l'abonnement n'existe pas.
+**Ce qui ne l'est pas encore :** le reversement des fonds (les deux boutons de
+validation sont encore une simulation) et le paiement de l'abonnement.
 
 La logique métier, elle, est juste : le bon de commande transmet les coordonnées du client
 à l'agence, l'agence clôture ses livraisons, et le bilan se calcule sur la période choisie.
@@ -29,6 +29,7 @@ npm run dev            # lance le site sur http://localhost:3000
 npm test               # filtre, synchronisation des deux copies, rôles, écrans vides
 npm run test:responsive  # 6 pages × 8 formats de téléphones, dans un vrai navigateur
 npm run test:chat        # le filtre serveur est-il contournable ? (navigateur réel)
+npm run test:commande    # cycle complet d'une commande, marchand et agence
 ```
 
 Les deux derniers acceptent une URL : `npm run test:responsive https://…` pour vérifier
@@ -83,7 +84,7 @@ sur des données qui n'existent pas encore.
 - [x] **Bloc 2** — Réparation des trous métier du prototype
 - [x] **Bloc 3** — Supabase : schéma + règles RLS (voir [database/README.md](database/README.md))
 - [x] **Bloc 4** — Parcours d'inscription réel (compte, connexion, accès protégé)
-- [~] **Bloc 5** — Données réelles : annuaire et chat branchés, bilan à suivre
+- [x] **Bloc 5** — Données réelles : annuaire, chat, commandes et bilan financier
 - [ ] **Bloc 6** — Tableau de bord agence + validation KYC
 - [x] **Bloc 7** — Filtre anti-désintermédiation côté serveur (remonté avant le Bloc 5)
 - [ ] **Bloc 8** — Paiement réel (FedaPay / Kkiapay) et abonnements
@@ -133,8 +134,9 @@ de synchronisation compare les fichiers du dépôt, il ne voit pas la version d�
    aucun prélèvement. Bloc 8.
 2. **Une agence dépose son dossier mais ne peut pas encore envoyer ses pièces KYC.**
    Elle reste invisible dans l'annuaire jusqu'à validation manuelle en base. Bloc 6.
-3. **Les commandes et le bilan financier restent simulés.** Ils s'affichent à partir
-   de données écrites en dur, pas de la base. C'est la suite du Bloc 5.
+3. **Le point financier ne génère pas encore de reversement.** Les boutons « Virement
+   effectué » et « Fonds reçus » affichent une simulation ; la table `financial_payouts`
+   existe mais n'est pas alimentée. Bloc 8.
 4. **Suppression de compte impossible en l'état** — voir [database/README.md](database/README.md).
 5. **Comptes de démonstration à supprimer avant l'ouverture** : `marchand@demo.relais`
    et `agence@demo.relais`.
