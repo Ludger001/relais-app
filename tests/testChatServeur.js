@@ -47,12 +47,12 @@ async function session(email) {
   console.log(`\nChat sécurisé — ${BASE}\n`);
 
   await page.goto(`${BASE}/app.html`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2500);
 
   // --- 1. La conversation existante est-elle chargée depuis la base ? ---
   console.log('1. Chargement depuis la base');
   await page.click('#tab-btn-chat');
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1500);
 
   // On ne regarde QUE les bulles de message. Les bons de commande affichent
   // volontairement le téléphone du client : ils ne passent pas par la

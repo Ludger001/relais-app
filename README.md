@@ -8,6 +8,9 @@ collecté, et bouclier anti-désintermédiation.
 
 ---
 
+📘 **[DOCUMENTATION.md](DOCUMENTATION.md)** — la référence complète : fonctionnalités,
+structure, technologies, **modèle d'habilitations**, décisions de design et points futurs.
+
 ## État actuel
 
 **Ce qui est réel :** les comptes, la connexion, les rôles, l'annuaire des agences, et
