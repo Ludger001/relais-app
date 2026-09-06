@@ -178,6 +178,9 @@ const state = {
   // Commandes COD chargées depuis Supabase (Bloc 5)
   orders: [],
 
+  // Points financiers (reversements) chargés depuis Supabase
+  payouts: [],
+
   // Tentatives de contournement — table security_violations (Bloc 7)
   securityLogs: []
 };
@@ -199,6 +202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await chargerAgences();
   await chargerConversations();
   await chargerCommandes();
+  await chargerPointsFinanciers();
   await chargerJournalSecurite();
 
   renderAgencies();
@@ -931,28 +935,148 @@ function setupOrdersAndFinance() {
     renderFinanceView();
   });
 
-  // Boutons du point financier
   document.getElementById('btn-quick-view-payout')?.addEventListener('click', () => {
     switchTab('finance');
   });
 
-  document.getElementById('btn-agency-make-payout')?.addEventListener('click', () => {
-    alert('Simulation : L\'agence a généré le reçu de virement Mobile Money (Wave / Orange Money). Statut passé à "En attente de confirmation marchand".');
-    document.getElementById('kpi-payout-status-badge').textContent = '🟠 Virement envoyé par l\'agence (Justificatif joint)';
-  });
+  document.getElementById('btn-agency-make-payout')?.addEventListener('click', actionAgenceReversement);
+  document.getElementById('btn-merchant-confirm-payout')?.addEventListener('click', actionMarchandReversement);
+}
 
-  document.getElementById('btn-merchant-confirm-payout')?.addEventListener('click', () => {
-    alert('Simulation : Le marchand confirme la bonne réception des fonds COD sur son compte Mobile Money. Le cycle est clôturé sans litige !');
-    document.getElementById('kpi-payout-status-badge').textContent = '🟢 Reversement 100% Réglé & Confirmé';
-    
-    // Marquer les commandes comme payées
-    state.orders.forEach(o => {
-      if (o.agencyId === state.selectedAgencyId && o.status === 'delivered') {
-        o.payoutStatus = 'paid';
-      }
+// =============================================================================
+// LE REVERSEMENT DU CASH — LE MOMENT OÙ NAISSENT LES LITIGES
+// =============================================================================
+
+const ETATS_REVERSEMENT = {
+  draft:     '🟡 Comptes arrêtés, en attente du virement de l\'agence',
+  initiated: '🟠 Virement déclaré par l\'agence, en attente de votre confirmation',
+  confirmed: '🟢 Reversement confirmé par les deux parties',
+  disputed:  '🔴 Reversement contesté'
+};
+
+async function chargerPointsFinanciers() {
+  const { data, error } = await db
+    .from('financial_payouts')
+    .select('id, payout_reference, conversation_id, agency_id, merchant_id, period_start_date, period_end_date, total_delivered_orders, total_cod_collected, total_delivery_fees, net_payout_amount, status, proof_document_url, agency_note, merchant_note, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('[Relais] Points financiers indisponibles :', error.message);
+    state.payouts = [];
+    return;
+  }
+  state.payouts = data || [];
+}
+
+/** Le point financier en cours pour la conversation ouverte, s'il y en a un. */
+function pointEnCours() {
+  const conversationId = state.conversationIds[state.selectedAgencyId];
+  return state.payouts.find(p =>
+    p.conversation_id === conversationId && p.status !== 'confirmed');
+}
+
+/**
+ * L'agence a deux gestes selon l'étape : arrêter les comptes, puis déclarer
+ * le virement fait. Un seul bouton, dont le sens dépend de l'état.
+ */
+async function actionAgenceReversement() {
+  const bouton = document.getElementById('btn-agency-make-payout');
+  const point = pointEnCours();
+
+  if (!point) {
+    const conversationId = state.conversationIds[state.selectedAgencyId];
+    if (!conversationId) return alert('Sélectionnez une conversation.');
+
+    const bornes = periodRange(state.currentPeriod) || {
+      from: new Date('2000-01-01'), to: new Date('2100-01-01')
+    };
+    const jour = (d) => new Date(d).toISOString().slice(0, 10);
+    const veille = new Date(bornes.to.getTime() - 86400000);
+
+    if (!confirm(
+      `Arrêter les comptes pour ${periodLabel(state.currentPeriod)} ?\n\n` +
+      `Les totaux seront calculés par Relais à partir des livraisons réellement ` +
+      `encaissées, et figés. Le marchand verra exactement les mêmes chiffres.`
+    )) return;
+
+    bouton.disabled = true;
+    const { error } = await db.rpc('generer_point_financier', {
+      p_conversation: conversationId,
+      p_debut: jour(bornes.from),
+      p_fin: jour(veille)
     });
-    renderFinanceView();
-  });
+    bouton.disabled = false;
+
+    if (error) return alert(error.message);
+    await rafraichirFinance();
+    return;
+  }
+
+  if (point.status === 'draft') {
+    const preuve = prompt(
+      'Référence ou nom du reçu de votre virement Mobile Money :\n' +
+      '(Wave, Orange Money, MTN MoMo, Moov…)'
+    );
+    if (!preuve) return;
+
+    bouton.disabled = true;
+    const { error } = await db.rpc('declarer_virement', {
+      p_point: point.id,
+      p_preuve: preuve,
+      p_note: `Virement de ${Number(point.net_payout_amount).toLocaleString()} FCFA`
+    });
+    bouton.disabled = false;
+
+    if (error) return alert(error.message);
+    await rafraichirFinance();
+    return;
+  }
+
+  alert("Le virement est déclaré. C'est au marchand de confirmer qu'il a reçu les fonds.");
+}
+
+/**
+ * Le marchand confirme, ou conteste. Sa confirmation est ce qui solde les
+ * commandes : personne ne peut la donner à sa place.
+ */
+async function actionMarchandReversement() {
+  const point = pointEnCours();
+  if (!point) return alert("Aucun reversement en cours. L'agence doit d'abord arrêter les comptes.");
+
+  if (point.status === 'draft') {
+    return alert("L'agence n'a pas encore déclaré le virement. Patientez.");
+  }
+
+  const recu = confirm(
+    `Reversement ${point.payout_reference}\n\n` +
+    `Montant annoncé : ${Number(point.net_payout_amount).toLocaleString()} FCFA\n` +
+    `Justificatif de l'agence : ${point.proof_document_url || '—'}\n\n` +
+    `Cliquez sur OK si vous avez bien reçu cette somme.\n` +
+    `Cliquez sur Annuler pour la contester.`
+  );
+
+  if (recu) {
+    const { error } = await db.rpc('confirmer_reception_fonds', {
+      p_point: point.id, p_note: 'Fonds reçus et vérifiés'
+    });
+    if (error) return alert(error.message);
+  } else {
+    const motif = prompt('Que constatez-vous ? (montant reçu, somme manquante, rien reçu…)');
+    if (!motif) return;
+    const { error } = await db.rpc('contester_point_financier', {
+      p_point: point.id, p_motif: motif
+    });
+    if (error) return alert(error.message);
+  }
+
+  await rafraichirFinance();
+}
+
+async function rafraichirFinance() {
+  await chargerCommandes();
+  await chargerPointsFinanciers();
+  renderFinanceView();
+  renderOrdersStrip();
 }
 
 function renderFinanceView() {
@@ -994,6 +1118,34 @@ function renderFinanceView() {
   document.getElementById('kpi-total-collected').textContent = `${totalCollected.toLocaleString()} FCFA`;
   document.getElementById('kpi-total-fees').textContent = `- ${totalFees.toLocaleString()} FCFA`;
   document.getElementById('kpi-net-payout').textContent = `${netPayout.toLocaleString()} FCFA`;
+
+  // Les deux boutons de reversement n'appartiennent pas au meme acteur
+  const point = pointEnCours();
+  const badge = document.getElementById('kpi-payout-status-badge');
+  if (badge) {
+    badge.textContent = point
+      ? ETATS_REVERSEMENT[point.status] || point.status
+      : '🟡 Aucun reversement en cours';
+  }
+
+  const boutonAgence = document.getElementById('btn-agency-make-payout');
+  const boutonMarchand = document.getElementById('btn-merchant-confirm-payout');
+  if (boutonAgence) {
+    boutonAgence.hidden = state.currentRole !== 'agency';
+    boutonAgence.textContent = !point
+      ? '🧮 Arrêter les comptes de la période'
+      : point.status === 'draft'
+        ? '📤 Déclarer le virement effectué'
+        : '⏳ En attente du marchand';
+    boutonAgence.disabled = point && point.status !== 'draft';
+  }
+  if (boutonMarchand) {
+    boutonMarchand.hidden = state.currentRole !== 'merchant';
+    boutonMarchand.disabled = !point || point.status !== 'initiated';
+    boutonMarchand.textContent = point && point.status === 'initiated'
+      ? "✅ J'ai bien reçu les fonds"
+      : '✅ Confirmer la réception des fonds';
+  }
 
   const periodEcho = document.getElementById('finance-period-echo');
   if (periodEcho) {

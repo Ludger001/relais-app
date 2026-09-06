@@ -10,7 +10,8 @@
     "test:chat": "node tests/testChatServeur.js",
     "filtre:generer": "node scripts/genererFiltreServeur.js",
     "test:commande": "node tests/testCycleCommande.js",
-    "test:kyc": "node tests/testCertificationKYC.js"
+    "test:kyc": "node tests/testCertificationKYC.js",
+    "test:reversement": "node tests/testReversement.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0",
