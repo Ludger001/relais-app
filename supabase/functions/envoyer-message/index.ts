@@ -60,7 +60,7 @@ Deno.serve(async (requete) => {
   }
 
   // 2. CE QU'IL ENVOIE
-  let charge: { conversation_id?: string; content?: string };
+  let charge: { conversation_id?: string; content?: string; piece_jointe?: string };
   try {
     charge = await requete.json();
   } catch {
@@ -69,9 +69,21 @@ Deno.serve(async (requete) => {
 
   const conversationId = (charge.conversation_id ?? '').trim();
   const contenu = (charge.content ?? '').trim();
+  const pieceJointe = (charge.piece_jointe ?? '').trim();
 
-  if (!conversationId || !contenu) {
-    return reponse({ erreur: 'conversation_id et content sont obligatoires.' }, 400);
+  // Un message peut ne porter qu'une image : le texte devient alors facultatif.
+  if (!conversationId || (!contenu && !pieceJointe)) {
+    return reponse({ erreur: 'Il faut un conversation_id, et du texte ou une pièce jointe.' }, 400);
+  }
+
+  // Le chemin de la pièce jointe doit désigner CETTE conversation. Sans ce
+  // contrôle, un participant pourrait rattacher à son message le fichier d'une
+  // conversation à laquelle il n'appartient pas, et le faire lire à l'autre.
+  if (pieceJointe && !pieceJointe.startsWith(conversationId + '/')) {
+    return reponse({ erreur: 'Pièce jointe rattachée à une autre conversation.' }, 400);
+  }
+  if (pieceJointe.length > 400) {
+    return reponse({ erreur: 'Chemin de pièce jointe invalide.' }, 400);
   }
   if (contenu.length > 4000) {
     return reponse({ erreur: 'Message trop long (4000 caractères maximum).' }, 400);
@@ -136,9 +148,10 @@ Deno.serve(async (requete) => {
       sender_id: profil.id,
       original_content: contenu,
       filtered_content: inspection.cleanText,
-      has_contact_leak_attempt: inspection.isBlocked
+      has_contact_leak_attempt: inspection.isBlocked,
+      attachment_url: pieceJointe || null
     })
-    .select('id, conversation_id, sender_id, filtered_content, has_contact_leak_attempt, created_at')
+    .select('id, conversation_id, sender_id, filtered_content, has_contact_leak_attempt, attachment_url, created_at')
     .single();
 
   if (erreurInsertion) {

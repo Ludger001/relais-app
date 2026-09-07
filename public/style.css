@@ -2246,8 +2246,21 @@ textarea.chat-input {
    sur l'onglet de discussion, jamais sur les autres ecrans qui, eux, defilent
    normalement.
    ============================================================================= */
+/* La hauteur suit le viewport VISUEL, pas la fenetre.
+   interactive-widget=resizes-content ne fonctionne que sur Chrome Android et
+   assimiles — pas sur Safari iOS, soit moins d'un navigateur sur deux. Ailleurs,
+   le clavier RECOUVRE la page : la zone de saisie se retrouvait dessous, on
+   tapait a l'aveugle et le bouton d'envoi devenait inatteignable.
+   La variable est posee par suivreClavierVirtuel() dans app.js ; 100dvh reste
+   la valeur de repli tant qu'aucune mesure n'a eu lieu.
+
+   position: fixed empeche iOS de faire glisser la page sous le clavier. */
 body.vue-chat {
-  height: 100dvh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--hauteur-visible, 100dvh);
   overflow: hidden;            /* la page ne defile pas : seul le fil le fait */
 }
 body.vue-chat .app-main-content {
@@ -2374,3 +2387,45 @@ body.vue-chat .chat-workspace-layout {
    de defilement, elle s'arretait pile sur le bord et coupait le libelle voisin
    en plein milieu d'un mot. */
 .tabs-container { scroll-padding-inline: 1rem; }
+
+/* --- Pieces jointes dans le fil ------------------------------------------- */
+/* Le depot est prive : ces images arrivent par un lien signe de dix minutes,
+   demande seulement pour les fichiers reellement affiches. */
+.bubble.avec-piece { padding: .35rem .35rem .55rem; }
+.bubble.avec-piece:not(:empty) { max-width: 260px; }
+
+.piece-jointe { margin-bottom: .35rem; }
+.piece-jointe img {
+  display: block;
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: calc(var(--radius-md) - 4px);
+  background: var(--bg-card-hover);
+}
+.piece-attente {
+  display: block;
+  padding: 1.6rem .8rem;
+  text-align: center;
+  font-size: .8rem;
+  color: var(--text-dim);
+  background: var(--bg-card-hover);
+  border-radius: calc(var(--radius-md) - 4px);
+}
+.piece-document {
+  display: block;
+  padding: .7rem .9rem;
+  border-radius: calc(var(--radius-md) - 4px);
+  background: rgba(255, 255, 255, .18);
+  color: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+.message-bubble-wrap.received .piece-document {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+}
+/* Le texte du message reprend son rembourrage sous l'image */
+.bubble.avec-piece { padding-left: .55rem; padding-right: .55rem; }
+
+.btn-attach:disabled { opacity: .4; cursor: default; }

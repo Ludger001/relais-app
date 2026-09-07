@@ -13,7 +13,8 @@
     "test:kyc": "node tests/testCertificationKYC.js",
     "test:reversement": "node tests/testReversement.js",
     "test:motdepasse": "node tests/testMotDePasseOublie.js",
-    "test:direct": "node tests/testTempsReel.js"
+    "test:direct": "node tests/testTempsReel.js",
+    "test:pieces": "node tests/testPiecesJointes.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

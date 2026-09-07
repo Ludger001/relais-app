@@ -224,6 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupTabNavigation();
   setupCountryFilters();
   setupChat();
+  suivreClavierVirtuel();
   setupOrdersAndFinance();
   setupAdminPanel();
   setupDepotKYC();
@@ -425,9 +426,9 @@ function setupChat() {
    * ce que fait ici le filtre local n'est qu'un avertissement anticipé, il
    * n'a aucun pouvoir de décision.
    */
-  async function handleSend() {
+  async function handleSend(pieceJointe = null) {
     const rawText = inputField.value.trim();
-    if (!rawText) return;
+    if (!rawText && !pieceJointe) return;
 
     const conversationId = state.conversationIds[state.selectedAgencyId];
     if (!conversationId) {
@@ -441,7 +442,8 @@ function setupChat() {
       const toast = document.getElementById('filter-alert-toast');
       if (toast) {
         toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 6000);
+        clearTimeout(toast._minuterie);
+        toast._minuterie = setTimeout(() => { toast.style.display = 'none'; }, 6000);
       }
     }
 
@@ -449,13 +451,21 @@ function setupChat() {
     sendBtn.disabled = true;
 
     try {
-      const { data, error } = await db.functions.invoke('envoyer-message', {
-        body: { conversation_id: conversationId, content: rawText }
+      const { error } = await db.functions.invoke('envoyer-message', {
+        body: {
+          conversation_id: conversationId,
+          content: rawText,
+          piece_jointe: pieceJointe || undefined
+        }
       });
 
       if (error) {
+        // Le serveur explique pourquoi il refuse — cadence dépassée, compte
+        // désactivé, conversation bloquée. La version précédente jetait cette
+        // explication et affichait « Réessayez dans un instant » : on ne
+        // pouvait pas savoir qu'il fallait simplement patienter une minute.
         console.error('[Relais] Envoi refusé :', error);
-        alert("Votre message n'a pas pu être envoyé. Réessayez dans un instant.");
+        alert(await messageDErreurServeur(error));
         return;
       }
 
@@ -468,21 +478,77 @@ function setupChat() {
 
     } finally {
       inputField.disabled = false;
-      sendBtn.disabled = false;
       inputField.focus();
+      ajusterHauteurSaisie();   // règle aussi l'état du bouton d'envoi
     }
   }
+
+  /**
+   * Dépose une photo ou un document, puis l'envoie comme message.
+   *
+   * Le chemin commence par l'identifiant de la conversation : c'est ce que
+   * lisent les règles du dépôt pour vérifier que l'on en est bien participant,
+   * et c'est ce que revérifie la fonction serveur avant d'attacher le fichier.
+   */
+  async function envoyerFichier(fichier) {
+    const conversationId = state.conversationIds[state.selectedAgencyId];
+    if (!conversationId) {
+      alert("Ouvrez d'abord une conversation depuis l'annuaire.");
+      return;
+    }
+
+    const TAILLE_MAX = 5 * 1024 * 1024;
+    if (fichier.size > TAILLE_MAX) {
+      alert(`Ce fichier pèse ${Math.round(fichier.size / 1024 / 1024)} Mo. La limite est de 5 Mo — prenez la photo en qualité normale plutôt qu'en haute définition.`);
+      return;
+    }
+
+    const extension = (fichier.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const chemin = `${conversationId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
+
+    const boutonJoindre = document.getElementById('btn-attach');
+    if (boutonJoindre) boutonJoindre.disabled = true;
+
+    try {
+      const { error } = await db.storage.from('pieces-chat').upload(chemin, fichier, {
+        contentType: fichier.type,
+        upsert: false
+      });
+
+      if (error) {
+        console.error('[Relais] Dépôt refusé :', error);
+        alert("Ce fichier n'a pas pu être envoyé. Vérifiez qu'il s'agit d'une image ou d'un PDF de moins de 5 Mo.");
+        return;
+      }
+
+      await handleSend(chemin);
+
+    } finally {
+      if (boutonJoindre) boutonJoindre.disabled = false;
+    }
+  }
+
+  const champFichier = document.getElementById('chat-fichier');
+  document.getElementById('btn-attach')?.addEventListener('click', () => champFichier?.click());
+  champFichier?.addEventListener('change', async () => {
+    const fichier = champFichier.files?.[0];
+    if (fichier) await envoyerFichier(fichier);
+    champFichier.value = '';   // sinon renvoyer le même fichier ne déclenche rien
+  });
 
   sendBtn?.addEventListener('click', handleSend);
 
   /**
-   * Entrée envoie, Maj+Entrée passe à la ligne — la convention de toutes les
-   * messageries. Sur téléphone, la touche du clavier virtuel vaut « nouvelle
-   * ligne » : on n'envoie pas, sinon un message sur deux part en morceaux.
+   * Entrée envoie, Maj+Entrée passe à la ligne — partout, téléphone compris.
+   *
+   * La version précédente ne l'appliquait pas sur téléphone, de peur de couper
+   * les messages en morceaux. Le résultat était pire : on tapait, on appuyait
+   * sur la touche du clavier, et rien ne partait. L'attribut enterkeyhint
+   * demande au clavier virtuel d'étiqueter cette touche « Envoyer », ce qui
+   * lève l'ambiguïté au lieu de la créer.
    */
   inputField?.addEventListener('keydown', (e) => {
-    const surTelephone = window.matchMedia('(max-width: 900px)').matches;
-    if (e.key === 'Enter' && !e.shiftKey && !surTelephone) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -515,6 +581,56 @@ function setupChat() {
       inputField.focus();
     });
   });
+}
+
+/**
+ * Une fonction serveur qui refuse renvoie une explication utile. supabase-js
+ * l'enveloppe dans une erreur dont le corps n'est lisible qu'en relisant la
+ * réponse : sans ça, « Limite atteinte, patientez une minute » devenait
+ * « Réessayez dans un instant », et l'utilisateur ne savait pas quoi corriger.
+ */
+async function messageDErreurServeur(erreur) {
+  const repli = "Votre message n'a pas pu être envoyé. Réessayez dans un instant.";
+  try {
+    const corps = await erreur?.context?.json?.();
+    return corps?.erreur || repli;
+  } catch {
+    return repli;
+  }
+}
+
+/**
+ * Fait suivre à la messagerie la hauteur RÉELLEMENT visible de l'écran.
+ *
+ * Quand le clavier virtuel s'ouvre, deux comportements existent selon le
+ * navigateur : soit il redimensionne la page (Chrome Android, via le méta
+ * interactive-widget), soit il la recouvre — c'est le cas de Safari iOS, où ce
+ * méta n'existe pas. Dans le second cas, la zone de saisie se retrouvait sous
+ * le clavier : on tapait sans voir, et le bouton d'envoi devenait inatteignable.
+ *
+ * visualViewport donne la hauteur effectivement visible dans les deux cas.
+ * Disponible sur tous les navigateurs courants depuis 2021 ; s'il manque, le
+ * CSS retombe sur 100dvh et le comportement reste celui d'avant.
+ */
+function suivreClavierVirtuel() {
+  const vue = window.visualViewport;
+  if (!vue) return;
+
+  const appliquer = () => {
+    document.documentElement.style.setProperty('--hauteur-visible', vue.height + 'px');
+    // iOS fait glisser la page sous le clavier ; on la ramène en place.
+    if (document.body.classList.contains('vue-chat')) window.scrollTo(0, 0);
+  };
+
+  vue.addEventListener('resize', () => {
+    appliquer();
+    // Le clavier vient de manger la moitié de l'écran : sans ça, le dernier
+    // message se retrouve hors champ juste au moment où l'on répond.
+    const flux = document.getElementById('messages-stream');
+    if (flux) flux.scrollTop = flux.scrollHeight;
+  });
+  vue.addEventListener('scroll', appliquer);
+  appliquer();
 }
 
 /**
@@ -784,7 +900,7 @@ async function chargerMessages(agencyId) {
 
   const { data, error } = await db
     .from('messages_readable')
-    .select('id, sender_id, filtered_content, has_contact_leak_attempt, created_at')
+    .select('id, sender_id, filtered_content, has_contact_leak_attempt, attachment_url, created_at')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true });
 
@@ -799,7 +915,8 @@ async function chargerMessages(agencyId) {
     time: formatOrderDate(new Date(m.created_at)),
     dateBrute: new Date(m.created_at),
     text: m.filtered_content,
-    hasViolation: m.has_contact_leak_attempt
+    hasViolation: m.has_contact_leak_attempt,
+    pieceJointe: m.attachment_url || null
   }));
 }
 
@@ -895,10 +1012,18 @@ function renderActiveChat() {
                   || estDeMoi(suivant.donnees) !== moi
                   || !!separateurDeJour(suivant.date, el.date);
 
+    // Une pièce jointe est chargée après coup : la vignette porte le chemin,
+    // et revelerPiecesJointes() ira chercher un lien signé de courte durée.
+    const piece = m.pieceJointe
+      ? `<div class="piece-jointe" data-piece="${echapperHtml(m.pieceJointe)}">
+           <span class="piece-attente">Chargement de la pièce jointe…</span>
+         </div>`
+      : '';
+
     return separateur + `
       <div class="message-bubble-wrap ${moi ? 'sent' : 'received'}${debut ? ' debut-groupe' : ''}${fin ? ' fin-groupe' : ''}">
-        <div class="bubble ${m.hasViolation ? 'violation' : ''}">
-          ${echapperHtml(m.text)}
+        <div class="bubble ${m.hasViolation ? 'violation' : ''}${m.pieceJointe ? ' avec-piece' : ''}">
+          ${piece}${m.text ? echapperHtml(m.text) : ''}
         </div>
         <span class="msg-time">${echapperHtml(m.time)}</span>
       </div>
@@ -908,6 +1033,47 @@ function renderActiveChat() {
   container.scrollTop = container.scrollHeight;
   renderOrdersStrip();
   ajusterHauteurSaisie();   // le panneau est visible : la mesure est enfin juste
+  revelerPiecesJointes(container);
+}
+
+/**
+ * Le dépôt des pièces jointes est privé : aucune adresse permanente n'existe.
+ * On demande un lien signé, valable dix minutes, uniquement pour les fichiers
+ * réellement affichés. Un participant qui n'appartient pas à la conversation
+ * n'obtient rien — la règle vit dans le dépôt, pas ici.
+ */
+async function revelerPiecesJointes(conteneur) {
+  const vignettes = [...conteneur.querySelectorAll('.piece-jointe[data-piece]')];
+  if (!vignettes.length) return;
+
+  const chemins = [...new Set(vignettes.map(v => v.dataset.piece))];
+  const { data, error } = await db.storage.from('pieces-chat').createSignedUrls(chemins, 600);
+
+  if (error) {
+    console.error('[Relais] Pièces jointes indisponibles :', error.message);
+    vignettes.forEach(v => { v.innerHTML = '<span class="piece-attente">Pièce jointe indisponible.</span>'; });
+    return;
+  }
+
+  const liens = {};
+  (data || []).forEach(d => { if (d.signedUrl) liens[d.path] = d.signedUrl; });
+
+  vignettes.forEach(v => {
+    const chemin = v.dataset.piece;
+    const url = liens[chemin];
+    if (!url) {
+      v.innerHTML = '<span class="piece-attente">Pièce jointe indisponible.</span>';
+      return;
+    }
+    const estPdf = /.pdf$/i.test(chemin);
+    v.innerHTML = estPdf
+      ? `<a class="piece-document" href="${echapperHtml(url)}" target="_blank" rel="noopener">
+           📄 Ouvrir le document
+         </a>`
+      : `<a href="${echapperHtml(url)}" target="_blank" rel="noopener">
+           <img src="${echapperHtml(url)}" alt="Pièce jointe" loading="lazy">
+         </a>`;
+  });
 }
 
 /**

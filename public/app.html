@@ -264,10 +264,16 @@
 
           <!-- BARRE DE SAISIE DE MESSAGE -->
           <div class="chat-input-bar">
-            <button class="btn-attach" id="btn-attach-mock" title="Attacher un bon / reçu de livraison">
+            <!-- Le champ reste invisible : c'est le bouton trombone qui l'ouvre.
+                 Pas de son ni de vidéo — une note vocale ne peut pas être filtrée. -->
+            <input type="file" id="chat-fichier" hidden
+                   accept="image/jpeg,image/png,image/webp,application/pdf">
+            <button class="btn-attach" id="btn-attach" type="button"
+                    title="Joindre une photo ou un document"
+                    aria-label="Joindre une photo ou un document">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
-            <textarea id="chat-input-field" class="chat-input" rows="1"
+            <textarea id="chat-input-field" class="chat-input" rows="1" enterkeyhint="send"
                       placeholder="Écrivez un message…" autocomplete="off"
                       aria-label="Votre message"></textarea>
             <button class="btn-send" id="btn-send-message">
