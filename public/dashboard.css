@@ -377,8 +377,15 @@
   .session-identity { padding-left: 0; border-left: none; }
 }
 
+/* Ces regles faisaient occuper toute la largeur aux boutons de l'en-tete, sur
+   une rangee a eux. L'en-tete tient desormais sur une seule rangee : elles le
+   cassaient — le bouton s'etirait et l'avatar venait se dessiner par-dessus le
+   logo. dashboard.css est charge APRES style.css : aucune surcharge ecrite
+   ailleurs ne pouvait les emporter, il fallait les retirer ici.
+   La mise en page mobile de l'en-tete vit desormais dans style.css, section
+   « TOUT CE QUI SE TOUCHE FAIT AU MOINS 44px ». */
 @media (max-width: 640px) {
-  .header-boutons { width: 100%; }
+  .header-boutons { width: auto; }
   .header-boutons .btn,
-  .header-boutons .btn-logout { flex: 1; text-align: center; }
+  .header-boutons .btn-logout { flex: 0 0 auto; text-align: center; }
 }

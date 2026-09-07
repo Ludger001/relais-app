@@ -2293,67 +2293,106 @@ body.vue-chat .chat-workspace-layout {
   }
 }
 
+/* Le rappel de securite existe en deux ecritures : la longue sur grand ecran,
+   la courte sur telephone. La version precedente tronquait la longue avec un
+   degrade, en plein milieu d'une phrase — une regle de securite coupee
+   n'apprend rien a personne. */
+.rappel-long  { display: inline; }
+.rappel-court { display: none; }
+
 /* =============================================================================
-   RENDRE L'ECRAN A LA CONVERSATION
+   LA MESSAGERIE AU DOIGT
    =============================================================================
-   Une fois la coquille en place, il restait environ 100px pour les messages :
-   l'en-tete de l'application occupait trois rangees, le rappel de securite
-   cinq lignes, le bandeau des commandes etait deplie. Une messagerie doit
-   donner l'essentiel de l'ecran a ce qu'on lit et ecrit.
+   Reprise du 2026-09-06. La version precedente passait les 184 controles de
+   testResponsive.js — qui ne mesure que le debordement horizontal — alors
+   qu'elle etait inutilisable au pouce : bouton retour de 30x30, trombone de
+   32x35, en-tete de l'application occupant 185px sur 640, rappel de securite
+   coupe au milieu d'une phrase, texte de la zone de saisie rogne.
+
+   Reference retenue : 44px de cote minimum pour tout ce qui se touche.
    ============================================================================= */
 @media (max-width: 900px) {
 
-  /* --- L'en-tete de l'application tient sur une rangee ---------------------- */
-  body.vue-chat .app-header .header-container {
+  /* --- L'en-tete de l'application : une rangee, sur TOUS les ecrans --------- */
+  /* Il occupait quatre rangees et 420px sur un ecran de 640 dans l'annuaire et
+     le bilan : la moitie de l'ecran avant le moindre contenu. La version
+     compacte n'existait que dans le chat ; elle vaut maintenant partout. */
+  /* Une regle anterieure passe cet en-tete en COLONNE sous 900px, ce qui lui
+     donnait 93px de haut. « flex-wrap: nowrap » ne pouvait rien contre une
+     direction : il faut remettre la rangee explicitement. */
+  .app-header .header-container {
+    flex-direction: row;
     flex-wrap: nowrap;
-    padding: .5rem .85rem;
+    align-items: center;
+    padding: .3rem .6rem;
+    gap: .5rem;
+    min-height: 52px;
+  }
+  .brand { flex: 0 0 auto; }
+  .logo-icon { width: 30px; height: 30px; }
+  .brand-name { font-size: .92rem; }
+
+  /* La pastille d'abonnement est deja sur le tableau de bord ; ici elle coute
+     une rangee entiere pour une information qui ne change pas. */
+  .subscription-pill { display: none; }
+
+  /* min-width: 0 la laissait retrecir SOUS la taille de son contenu : ses
+     enfants, non retrecissables, debordaient alors de 34px hors de l'ecran.
+     Elle prend desormais exactement la place qu'il lui faut. */
+  /* Formulation robuste : le bloc prend l'espace restant (flex: 1 1 auto) et
+     colle ses enfants a droite. Les tentatives precedentes le dimensionnaient
+     sur son contenu — « width: auto », puis « max-content » — et il calculait
+     91px la ou ses enfants en demandaient 135, si bien que le bouton sortait
+     de l'ecran de 34px. Ici il n'a plus a deviner : il occupe ce qui reste. */
+  .header-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
     gap: .6rem;
   }
-  body.vue-chat .logo-icon { width: 30px; height: 30px; }
-  body.vue-chat .brand-name { font-size: .95rem; }
-
-  /* La pastille d'abonnement est deja lisible sur le tableau de bord ; ici elle
-     coute une rangee entiere pour une information qui ne change pas. */
-  body.vue-chat .subscription-pill { display: none; }
-
-  body.vue-chat .header-actions {
-    width: auto;
-    flex-wrap: nowrap;
-    gap: .5rem;
+  /* flex: 0 0 auto — sinon le bloc se laisse reduire a zero, l'avatar garde
+     ses 32px et vient se dessiner PAR-DESSUS le bouton voisin. */
+  .session-identity {
+    flex: 0 0 auto;
     min-width: 0;
+    padding-left: 0;
+    border-left: none;
   }
-  body.vue-chat .session-identity { min-width: 0; }
-  body.vue-chat .session-texte { display: none; }   /* l'avatar suffit */
-  /* Les deux boutons restent lisibles : un pictogramme obscur ferait douter
-     l'utilisateur au moment ou il cherche a se deconnecter. */
-  body.vue-chat .header-boutons { width: auto; flex-shrink: 0; }
-  body.vue-chat .header-boutons .btn,
-  body.vue-chat .header-boutons .btn-logout {
-    font-size: .72rem;
-    padding: .35rem .55rem;
+  .session-texte { display: none; }   /* l'avatar suffit */
+  .session-avatar { width: 32px; height: 32px; font-size: .74rem; flex-shrink: 0; }
+
+  /* Les libelles restent lisibles : un pictogramme obscur ferait douter au
+     moment de se deconnecter. Mais la cible reste touchable. */
+  /* .75rem, pas moins : a 8px on visait « Accueil » et on touchait
+     « Deconnexion ». Cette regle est plus specifique que la generale, elle
+     doit donc porter le meme ecart. */
+  .header-boutons { width: auto; flex-shrink: 0; gap: .75rem; }
+  .header-boutons .btn,
+  .header-boutons .btn-logout {
+    font-size: .7rem;
+    padding: .5rem .5rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
     white-space: nowrap;
   }
 
-  /* --- Le rappel de securite : une ligne, pas cinq ------------------------- */
-  /* La regle reste affichee — elle est le coeur du modele — mais elle n'a pas
-     a repousser le premier message hors de l'ecran a chaque ouverture. */
-  body.vue-chat .rappel-securite {
-    display: block;
-    max-height: 2.6em;
-    overflow: hidden;
-    position: relative;
-  }
-  body.vue-chat .rappel-securite::after {
-    content: "";
-    position: absolute;
-    inset: auto 0 0 0;
-    height: 1.1em;
-    background: linear-gradient(transparent, var(--primary-light));
-  }
+  /* --- Le rappel de securite : entier ou rien ------------------------------ */
+  /* Il etait tronque par un degrade au milieu d'une phrase : une regle de
+     securite coupee n'apprend rien. On affiche une version courte, ecrite pour
+     tenir, et la version complete reste sur grand ecran. */
+  body.vue-chat .rappel-securite { margin-bottom: .5rem; padding: .5rem .7rem; font-size: .76rem; }
+  .rappel-long  { display: none; }
+  .rappel-court { display: inline; }
 
-  /* --- L'en-tete de la conversation : une seule ligne ---------------------- */
-  .chat-header-bar { padding: .55rem .75rem; }
-  .chat-partner-info { min-width: 0; flex: 1; gap: .5rem; }
+  /* --- L'en-tete de la conversation --------------------------------------- */
+  .chat-header-bar { padding: .3rem .5rem; gap: .35rem; }
+  .chat-partner-info { min-width: 0; flex: 1; gap: .35rem; align-items: center; }
   .chat-partner-info > div:last-child { min-width: 0; }
   .partner-name-row { gap: .4rem; min-width: 0; }
   .partner-name {
@@ -2366,21 +2405,87 @@ body.vue-chat .chat-workspace-layout {
      fiche de l'agence ; les repeter ici coute deux lignes a chaque message lu. */
   .chat-header-bar .verified-badge-sm,
   .chat-header-bar .partner-meta { display: none; }
-  .partner-avatar { width: 34px; height: 34px; font-size: 1rem; flex-shrink: 0; }
+  .partner-avatar { width: 32px; height: 32px; font-size: .95rem; flex-shrink: 0; }
 
-  /* --- Le bandeau des commandes reste replie tant qu'on ne l'ouvre pas ----- */
-  .strip-header { padding: .5rem .75rem; font-size: .78rem; }
-  .strip-header .strip-cod-total { font-size: .74rem; }
+  /* --- Toutes les cibles tactiles a 44px ---------------------------------- */
+  .btn-retour-liste {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin-right: 0;
+    margin-left: -.25rem;      /* le pictogramme reste optiquement aligne */
+  }
+
+  .chat-actions-group { display: flex; gap: .3rem; flex-shrink: 0; width: auto; }
+  .chat-actions-group .btn {
+    font-size: 0;
+    padding: 0;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+
+  .btn-attach {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-send { width: 46px; height: 46px; flex-shrink: 0; }
+
+  /* --- Le bandeau des commandes : une ligne, jamais deux ------------------- */
+  .strip-header {
+    padding: .5rem .7rem;
+    min-height: 44px;
+    font-size: .78rem;
+    gap: .5rem;
+  }
+  .strip-header .strip-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .strip-header .strip-cod-total {
+    font-size: .74rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  /* Sous 400px, « A encaisser : » coutait plus large que le titre lui-meme,
+     qui tombait a « Co... ». Le montant seul suffit, la colonne est evidente. */
+  @media (max-width: 400px) {
+    .strip-cod-libelle { display: none; }
+  }
+
+  /* --- La zone de saisie ne doit pas rogner son propre texte --------------- */
+  .chat-input-bar { padding: .5rem .6rem; gap: .4rem; }
+  textarea.chat-input {
+    min-height: 44px;
+    padding: .6rem .8rem;
+    line-height: 1.35;
+  }
 }
 
-/* Le bandeau portait son propre rembourrage en plus de celui du bouton : replie,
-   il occupait encore 81px pour une seule ligne de texte. Le bouton porte
-   desormais tout l'espacement, et le bandeau n'en ajoute aucun. */
-.mini-orders-strip { padding: 0; }
-.mini-orders-strip .strip-cards-scroll { padding: 0 1.25rem .6rem; }
+/* Sur les tres petits ecrans, le mot RELAIS et « Accueil » cedent la place :
+   l'avatar et la deconnexion suffisent a se reperer et a sortir. */
+/* Sous 400px, quatre elements ne tiennent pas sur une rangee : l'avatar se
+   faisait ecraser entre le logo et les boutons. « Accueil » fait doublon avec
+   le logo, qui mene deja a l'accueil — c'est lui qui cede la place. */
+@media (max-width: 400px) {
+  .header-boutons .btn:not(.btn-logout) { display: none; }
+}
 
-@media (max-width: 900px) {
-  .mini-orders-strip .strip-cards-scroll { padding: 0 .75rem .5rem; }
+/* A 320px, « RELAIS » + l'avatar + « Deconnexion » faisaient 354px : le bouton
+   depassait de 34px hors de l'ecran. Le pictogramme du logo suffit a se
+   reperer, c'est le mot qui cede. */
+@media (max-width: 400px) {
+  .brand-name { display: none; }
+  /* Prive de son mot, le logo tombait a 42px de large : sous la limite alors
+     qu'il reste un lien de navigation. */
+  .brand { min-width: 44px; justify-content: center; }
 }
 
 /* La barre d'onglets defile pour amener l'onglet actif a l'ecran ; sans marge
@@ -2429,3 +2534,114 @@ body.vue-chat .chat-workspace-layout {
 .bubble.avec-piece { padding-left: .55rem; padding-right: .55rem; }
 
 .btn-attach:disabled { opacity: .4; cursor: default; }
+
+/* =============================================================================
+   TOUT CE QUI SE TOUCHE FAIT AU MOINS 44px
+   =============================================================================
+   Ajoute le 2026-09-06, apres que l'utilisateur a signale — pour la troisieme
+   fois — que l'application n'etait pas utilisable au telephone, alors que
+   testResponsive.js affichait 184 controles au vert. Ce test ne mesure que le
+   debordement horizontal : il ne dit rien de ce qu'un pouce peut atteindre.
+
+   44px vient de WCAG 2.2 (« Target Size ») et correspond a la pulpe d'un pouce
+   adulte. En dessous, on vise, on rate, on recommence — et sur un bon de
+   commande, on se trompe de bouton.
+
+   La regle est posee ici une fois pour toutes, sur les classes partagees,
+   plutot qu'ecran par ecran : c'est ce qui l'empeche de se reperdre au
+   prochain ecran ajoute. tests/testTactile.js echoue si elle se relache.
+   ============================================================================= */
+@media (max-width: 900px) {
+
+  /* Les boutons « petits » etaient a 28-36px de haut sur tous les ecrans */
+  .btn,
+  .btn-sm,
+  .btn-primary-sm,
+  .btn-secondary-sm,
+  .btn-outline-sm,
+  .btn-logout,
+  .btn-status-action,
+  .btn-chip,
+  .tab-item,
+  .conv-item,
+  [role="button"] {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Les champs de saisie tournaient autour de 41px : juste sous la limite.
+     16px de police reste indispensable, sinon iOS zoome a la mise au point. */
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea,
+  .form-input,
+  .custom-select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  /* Une case a cocher reste petite, mais son libelle devient la cible */
+  label:has(input[type="checkbox"]),
+  label:has(input[type="radio"]) {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 44px;
+  }
+
+  /* Le logo est un lien de navigation : il doit se viser comme les autres */
+  .brand,
+  .nav-brand {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Deux cibles collees l'une a l'autre s'activent l'une pour l'autre */
+  .chat-input-bar { gap: .5rem; }
+  .chat-actions-group { gap: .5rem; }
+  .header-boutons { gap: .5rem; }
+}
+
+/* Le pointeur grossier, c'est le doigt — quel que soit l'ecran. Une tablette
+   posee a plat a le meme besoin qu'un telephone. */
+@media (pointer: coarse) {
+  .btn, .btn-sm, .btn-primary-sm, .btn-secondary-sm,
+  .btn-outline-sm, .btn-logout, .btn-status-action {
+    min-height: 44px;
+  }
+}
+
+/* Restes releves par testTactile.js : les pastilles de pays de l'annuaire
+   faisaient 32px de haut, et les deux boutons de l'en-tete se touchaient a
+   moins de 8px — on visait « Accueil » et on tombait sur « Deconnexion ». */
+@media (max-width: 900px) {
+  .country-pill {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .header-boutons { gap: .75rem; }
+}
+
+/* Les libelles longs cedent sur petit ecran. « Deconnexion » occupait 132px sur
+   un ecran de 320 : le bouton sortait de l'ecran. « Sortir » dit la meme chose
+   en deux fois moins de place, et reste sans ambiguite. */
+.mot-long  { display: inline; }
+.mot-court { display: none; }
+
+@media (max-width: 480px) {
+  .mot-long  { display: none; }
+  .mot-court { display: inline; }
+}
+
+/* Les boutons de l'en-tete prennent la place de leur texte, pas davantage :
+   « flex: 1 » les faisait s'etirer, et leur conteneur ne savait plus quelle
+   largeur demander. */
+@media (max-width: 900px) {
+  .header-boutons { flex: 0 0 auto; width: auto; }
+  .header-boutons .btn,
+  .header-boutons .btn-logout { flex: 0 0 auto; }
+}

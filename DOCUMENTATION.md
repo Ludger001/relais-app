@@ -243,6 +243,8 @@ relais-app/
 │   ├── testFiltreSynchronise.js les deux copies disent-elles la même chose ?
 │   ├── testRoles.js             cloisonnement des rôles + tentatives de forçage
 │   ├── testEchappement.js       aucun texte de membre n'atteint innerHTML brut
+│   ├── testTactile.js           cibles tactiles ≥ 44 px sur 4 formats
+│   ├── testPiecesJointes.js     une pièce jointe ne sort pas de sa conversation
 │   ├── testAffichageVide.js     aucun écran ne plante avec une base vide
 │   ├── testResponsive.js        11 pages × 8 modèles, onglet par onglet
 │   ├── testChatServeur.js       le filtre serveur est-il contournable ?
@@ -450,6 +452,22 @@ d'appel.
 prélève rien. Une zone vide dit pourquoi elle est vide. Un compteur affiche le
 vrai nombre.
 
+**Tout doit être utilisable au téléphone.** Les clients de Relais travaillent
+au téléphone, pas devant un ordinateur : un écran inutilisable sur mobile est un
+écran inutilisable. Toute cible tactile fait au moins **44 px** de côté (WCAG 2.2,
+« Target Size »), avec 8 px entre deux voisines.
+
+⚠️ `test:responsive` ne mesure que le **débordement horizontal**. Il affichait
+184 contrôles au vert pendant que le chat était impraticable au pouce : bouton
+retour de 30 × 30, en-tête occupant 185 px sur 640, zone de saisie qui rognait
+son propre texte. `test:tactile` mesure ce qui manquait — mais **aucun des deux
+ne remplace le fait de regarder une capture**.
+
+Piège rencontré : `dashboard.css` est chargé **après** `style.css`. Une règle
+écrite dans `style.css` ne peut pas en emporter une de `dashboard.css` à
+spécificité égale, quel que soit l'endroit où on la place. Quand deux règles se
+contredisent, corriger celle qui a tort plutôt qu'empiler une surcharge.
+
 **Rien de ce qu'écrit un membre ne devient du HTML.** Le corps d'un message,
 le nom d'une boutique, le nom d'un fichier déposé, le texte qu'un membre a
 tenté d'envoyer et que le filtre a intercepté : tout cela est écrit par
@@ -478,7 +496,9 @@ npm run dev              # http://localhost:3000
 
 ```bash
 npm test                 # filtre, synchronisation, rôles, échappement, écrans vides
-npm run test:responsive  # 11 pages × 8 modèles, chaque onglet de chaque rôle
+npm run test:responsive  # débordement horizontal, 11 pages × 8 modèles
+npm run test:tactile     # cibles ≥ 44 px, 88 écrans × 4 formats de téléphone
+npm run test:pieces      # étanchéité des pièces jointes du chat
 npm run test:chat        # le filtre serveur est-il contournable ?
 npm run test:commande    # cycle complet d'une commande
 npm run test:kyc         # parcours de certification

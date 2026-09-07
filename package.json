@@ -14,7 +14,8 @@
     "test:reversement": "node tests/testReversement.js",
     "test:motdepasse": "node tests/testMotDePasseOublie.js",
     "test:direct": "node tests/testTempsReel.js",
-    "test:pieces": "node tests/testPiecesJointes.js"
+    "test:pieces": "node tests/testPiecesJointes.js",
+    "test:tactile": "node tests/testTactile.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

@@ -103,6 +103,8 @@ sur des données qui n'existent pas encore.
        (chiffres calculés en base, une vue par rôle)
 - [x] **Bloc 11** — Échappement de tout contenu écrit par un membre
        (faille d'injection fermée, test de non-régression)
+- [x] **Bloc 12** — Le chat devient une vraie messagerie : coquille figée,
+       pièces jointes, et toute l'application manipulable au pouce
 
 ### 🔴 Engagement à ne pas oublier : le service d'e-mails
 
