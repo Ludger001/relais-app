@@ -2,9 +2,19 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <!-- interactive-widget : le clavier virtuel redimensionne la mise en page au lieu
-       de la recouvrir. Sans ça, la zone de saisie disparaît sous le clavier. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+  <!-- viewport-fit=cover : sans lui, env(safe-area-inset-*) vaut zéro et la
+       zone de saisie se glisse sous la barre d'accueil des téléphones sans
+       bouton. interactive-widget : là où il existe (Chrome Android), le clavier
+       redimensionne la mise en page au lieu de la recouvrir. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#059669">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Relais">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="icon" href="assets/icone-192.png" type="image/png">
+  <link rel="manifest" href="manifest.webmanifest">
   <title>Relais App — Espace Membres Sécurisé (Annuaire, Chat & Commandes COD)</title>
   <meta name="description" content="Espace opérationnel privé Relais pour e-commerçants abonnés et agences certifiées.">
   

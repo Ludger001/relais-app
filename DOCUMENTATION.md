@@ -215,6 +215,8 @@ relais-app/
 │   ├── app.js                   toute la logique applicative
 │   ├── style.css                design system de l'application
 │   ├── dashboard.css            mise en page des trois tableaux de bord + en-tête
+│   ├── manifest.webmanifest     nom, icônes, display: standalone
+│   ├── sw.js                    service worker — la coquille seulement, jamais les données
 │   ├── landing.css              design system des pages publiques
 │   ├── lib/
 │   │   ├── supabaseClient.js    connexion, session, profil, traduction des erreurs
@@ -244,6 +246,7 @@ relais-app/
 │   ├── testRoles.js             cloisonnement des rôles + tentatives de forçage
 │   ├── testEchappement.js       aucun texte de membre n'atteint innerHTML brut
 │   ├── testTactile.js           cibles tactiles ≥ 44 px sur 4 formats
+│   ├── testCoquilleMobile.js    saisie visible clavier ouvert + installation
 │   ├── testPiecesJointes.js     une pièce jointe ne sort pas de sa conversation
 │   ├── testAffichageVide.js     aucun écran ne plante avec une base vide
 │   ├── testResponsive.js        11 pages × 8 modèles, onglet par onglet
@@ -498,6 +501,8 @@ npm run dev              # http://localhost:3000
 npm test                 # filtre, synchronisation, rôles, échappement, écrans vides
 npm run test:responsive  # débordement horizontal, 11 pages × 8 modèles
 npm run test:tactile     # cibles ≥ 44 px, 88 écrans × 4 formats de téléphone
+npm run test:mobile      # saisie visible clavier ouvert + installation (PWA)
+npm run icones           # régénère les icônes d'application
 npm run test:pieces      # étanchéité des pièces jointes du chat
 npm run test:chat        # le filtre serveur est-il contournable ?
 npm run test:commande    # cycle complet d'une commande

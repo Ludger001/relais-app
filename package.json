@@ -15,7 +15,9 @@
     "test:motdepasse": "node tests/testMotDePasseOublie.js",
     "test:direct": "node tests/testTempsReel.js",
     "test:pieces": "node tests/testPiecesJointes.js",
-    "test:tactile": "node tests/testTactile.js"
+    "test:tactile": "node tests/testTactile.js",
+    "test:mobile": "node tests/testCoquilleMobile.js",
+    "icones": "node scripts/genererIcones.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

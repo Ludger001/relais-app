@@ -2246,22 +2246,45 @@ textarea.chat-input {
    sur l'onglet de discussion, jamais sur les autres ecrans qui, eux, defilent
    normalement.
    ============================================================================= */
-/* La hauteur suit le viewport VISUEL, pas la fenetre.
-   interactive-widget=resizes-content ne fonctionne que sur Chrome Android et
-   assimiles — pas sur Safari iOS, soit moins d'un navigateur sur deux. Ailleurs,
-   le clavier RECOUVRE la page : la zone de saisie se retrouvait dessous, on
-   tapait a l'aveugle et le bouton d'envoi devenait inatteignable.
-   La variable est posee par suivreClavierVirtuel() dans app.js ; 100dvh reste
-   la valeur de repli tant qu'aucune mesure n'a eu lieu.
+/* svh, et non dvh.
+   ---------------------------------------------------------------------------
+   Trois unites existent pour la hauteur de la fenetre sur telephone :
 
-   position: fixed empeche iOS de faire glisser la page sous le clavier. */
+     lvh  la plus grande — barres du navigateur RETRACTEES
+     dvh  la courante — elle change pendant qu'on fait defiler
+     svh  la plus petite — barres du navigateur DEPLOYEES
+
+   J'utilisais dvh. Quand la barre d'adresse se redeploie — ce qu'elle fait des
+   qu'on remonte dans la page — la fenetre retrecit, mais la mise en page mettait
+   un instant a suivre : la zone de saisie passait alors SOUS la barre du
+   navigateur. C'est exactement ce que l'utilisateur a constate sur son
+   telephone, et que mon navigateur de test ne pouvait pas montrer : il n'a ni
+   barre d'adresse ni clavier.
+
+   svh est la hauteur garantie visible en toutes circonstances. On perd quelques
+   pixels quand les barres se retractent ; on ne cache jamais rien.
+
+   env(safe-area-inset-*) tient compte de l'encoche et de la barre d'accueil des
+   telephones sans bouton — sans quoi la zone de saisie se glisse dessous.
+   Le meta « viewport-fit=cover » d'app.html est ce qui rend ces valeurs non
+   nulles.
+
+   position: fixed a ete retire : il ancrait la coquille au viewport de mise en
+   page, pas au viewport visible, ce qui l'envoyait sous les barres du
+   navigateur des que celles-ci bougeaient. */
 body.vue-chat {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--hauteur-visible, 100dvh);
+  height: 100svh;
   overflow: hidden;            /* la page ne defile pas : seul le fil le fait */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Quand le navigateur sait mesurer le clavier virtuel, on se cale dessus :
+   c'est plus precis que svh, qui ne connait que les barres du navigateur.
+   La variable est posee par suivreClavierVirtuel(). */
+body.vue-chat.clavier-mesure {
+  height: var(--hauteur-visible, 100svh);
 }
 body.vue-chat .app-main-content {
   flex: 1;
@@ -2461,7 +2484,12 @@ body.vue-chat .chat-workspace-layout {
   }
 
   /* --- La zone de saisie ne doit pas rogner son propre texte --------------- */
-  .chat-input-bar { padding: .5rem .6rem; gap: .4rem; }
+  /* Le rembourrage du bas ajoute la barre d'accueil des telephones sans bouton :
+     sans lui, la barre de saisie se glisse dessous et devient intouchable. */
+  .chat-input-bar {
+    padding: .5rem .6rem calc(.5rem + env(safe-area-inset-bottom, 0px));
+    gap: .5rem;
+  }
   textarea.chat-input {
     min-height: 44px;
     padding: .6rem .8rem;
@@ -2644,4 +2672,39 @@ body.vue-chat .chat-workspace-layout {
   .header-boutons { flex: 0 0 auto; width: auto; }
   .header-boutons .btn,
   .header-boutons .btn-logout { flex: 0 0 auto; }
+}
+
+/* =============================================================================
+   ECRAN COURT : ON NE GARDE QUE CE QUI SERT A ECRIRE
+   =============================================================================
+   Clavier ouvert sur un telephone de 640px, il reste environ 340px. L'en-tete
+   de l'application (55), les onglets (49), le rappel de securite (52), l'en-tete
+   de conversation (44) et le bandeau des commandes (44) en mangeaient 244 : il
+   restait 28px de conversation, soit rien.
+
+   Quand on tape un message, on a besoin de deux choses : ce qu'on ecrit, et ce
+   a quoi on repond. Tout le reste peut disparaitre le temps de la saisie — il
+   revient des que le clavier se referme. C'est ce que fait toute messagerie.
+
+   Le seuil porte sur la HAUTEUR, pas sur une classe posee par JavaScript :
+   il fonctionne donc aussi la ou le navigateur retrecit la page tout seul, et
+   meme si le script n'a pas tourne.
+   ============================================================================= */
+@media (max-width: 900px) and (max-height: 520px) {
+  body.vue-chat .app-header,
+  body.vue-chat .main-tabs-nav,
+  body.vue-chat .rappel-securite,
+  body.vue-chat .mini-orders-strip {
+    display: none;
+  }
+
+  body.vue-chat .app-main-content { padding: 0; }
+  body.vue-chat .chat-workspace-layout { border-radius: 0; border: none; }
+
+  /* L'en-tete de la conversation reste : c'est le seul moyen de revenir a la
+     liste sans refermer le clavier. Il se reduit au minimum. */
+  .chat-header-bar { padding: .25rem .4rem; }
+  .partner-avatar { display: none; }
+
+  .messages-stream-container { padding: .6rem .7rem .5rem; }
 }

@@ -105,6 +105,8 @@ sur des données qui n'existent pas encore.
        (faille d'injection fermée, test de non-régression)
 - [x] **Bloc 12** — Le chat devient une vraie messagerie : coquille figée,
        pièces jointes, et toute l'application manipulable au pouce
+- [x] **Bloc 13** — Base d'application installable : `svh`, zones sûres,
+       manifeste, service worker, icônes — prête à emballer pour les magasins
 
 ### 🔴 Engagement à ne pas oublier : le service d'e-mails
 
@@ -121,6 +123,38 @@ limité à quelques messages par heure : il bloquait toute inscription.
 
 Sans ça, n'importe qui peut s'inscrire avec l'adresse e-mail d'un tiers, et
 « mot de passe oublié » ne fonctionne pour personne.
+
+## Passer sur le Play Store et l'App Store
+
+Le site est construit comme une application : manifeste, service worker, icônes,
+`display: standalone`, hauteurs en `svh` et zones sûres. Il s'installe déjà sur
+un écran d'accueil depuis le navigateur, et c'est la base sur laquelle on
+l'emballe pour les magasins — sans réécrire le code.
+
+L'emballage se fait avec **Capacitor**, qui met le site dans une coque native :
+
+```bash
+npm i @capacitor/core && npm i -D @capacitor/cli
+npx cap init                      # nom de l'app et identifiant (ex. app.relais)
+npm i @capacitor/android @capacitor/ios
+npx cap add android               # puis « ios » sur un Mac
+npx cap sync                      # recopie public/ dans les projets natifs
+```
+
+Dans `capacitor.config`, `webDir` vaut **`public`** — c'est déjà le dossier que
+Vercel met en ligne, il n'y a pas d'étape de compilation.
+
+Ce qu'il restera à faire, et qui ne dépend pas du code :
+
+| | Play Store | App Store |
+|---|---|---|
+| Compte développeur | 25 $ une fois | 99 $ par an |
+| Machine nécessaire | Windows suffit | **un Mac est obligatoire** |
+| Délai de revue | quelques heures | quelques jours |
+
+Les captures d'écran, la fiche et la politique de confidentialité sont
+demandées par les deux — cette dernière existe déjà
+([politique-confidentialite.html](public/politique-confidentialite.html)).
 
 ## Le bouclier anti-désintermédiation
 

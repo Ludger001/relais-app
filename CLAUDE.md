@@ -24,14 +24,28 @@ et agences en Afrique de l'Ouest et Centrale — travaillent au téléphone. Un
 écran inutilisable sur mobile est un écran inutilisable. Aucun écran n'est fini
 tant qu'il n'a pas été **vu** sur un format de téléphone.
 
+**L'application est construite pour être installée**, pas seulement visitée :
+manifeste, service worker, icônes, `display: standalone`. C'est la base sur
+laquelle un emballage Capacitor la publiera sur le Play Store et l'App Store.
+Ne rien casser de `manifest.webmanifest`, `sw.js` ni des métas d'application.
+
+**Hauteur : toujours `svh`, jamais `vh` ni `dvh`.** `dvh` suit les barres du
+navigateur pendant le défilement et laisse la zone de saisie passer dessous —
+c'est le défaut qui a fait revenir l'utilisateur une troisième fois. `svh` est
+la hauteur garantie visible. Et toute barre collée en bas ajoute
+`env(safe-area-inset-bottom)`, sinon elle se glisse sous la barre d'accueil.
+
 ⚠️ `npm run test:responsive` ne mesure que le **débordement horizontal** et la
 taille du texte. Il est passé au vert sur 184 contrôles pendant que le chat
-était inutilisable au doigt. Un test vert n'est pas une preuve. Il faut :
+était inutilisable au doigt, puis pendant que la zone de saisie disparaissait
+sous la barre du navigateur. Un test vert n'est pas une preuve. Il faut :
 
 1. capturer chaque écran modifié à **320, 360, 390 et 430 px**, et le regarder ;
 2. vérifier les cibles tactiles (≥ 44 px), le texte qui s'empile, les
    chevauchements, et que l'action principale est atteignable sans défiler ;
-3. lancer `npm run test:tactile` en plus de `test:responsive`.
+3. lancer `npm run test:tactile` (cibles ≥ 44 px) **et** `npm run test:mobile`
+   (la saisie reste-t-elle visible clavier ouvert ? l'application s'installe-t-elle ?)
+   en plus de `test:responsive`.
 
 
 **Ne jamais dépendre uniquement de l'absence d'une policy RLS.** Quand un accès

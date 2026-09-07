@@ -600,38 +600,57 @@ async function messageDErreurServeur(erreur) {
 }
 
 /**
- * Fait suivre à la messagerie la hauteur RÉELLEMENT visible de l'écran.
+ * Cale la messagerie sur la hauteur réellement visible de l'écran.
  *
- * Quand le clavier virtuel s'ouvre, deux comportements existent selon le
- * navigateur : soit il redimensionne la page (Chrome Android, via le méta
- * interactive-widget), soit il la recouvre — c'est le cas de Safari iOS, où ce
- * méta n'existe pas. Dans le second cas, la zone de saisie se retrouvait sous
- * le clavier : on tapait sans voir, et le bouton d'envoi devenait inatteignable.
+ * Le CSS pose déjà « height: 100svh » : la plus petite hauteur possible, celle
+ * qu'on a quand les barres du navigateur sont déployées. C'est la valeur sûre,
+ * qui ne cache jamais rien — et elle suffit tant que le clavier est fermé.
  *
- * visualViewport donne la hauteur effectivement visible dans les deux cas.
- * Disponible sur tous les navigateurs courants depuis 2021 ; s'il manque, le
- * CSS retombe sur 100dvh et le comportement reste celui d'avant.
+ * Reste le clavier virtuel, qu'aucune unité CSS ne connaît. Deux cas :
+ *   - Chrome Android : le méta interactive-widget fait rétrécir la mise en page,
+ *     tout se règle sans nous ;
+ *   - Safari iOS : le clavier RECOUVRE la page. C'est visualViewport qui donne
+ *     alors la hauteur restante.
+ *
+ * On ne prend cette mesure que si elle est PLUS PETITE que la fenêtre : sinon
+ * on rendrait la coquille plus haute que l'écran visible, ce qui remettrait la
+ * zone de saisie sous les barres du navigateur — l'erreur exacte de la version
+ * précédente, qui suivait visualViewport dans les deux sens.
  */
 function suivreClavierVirtuel() {
   const vue = window.visualViewport;
   if (!vue) return;
 
+  const corps = document.body;
+
   const appliquer = () => {
-    document.documentElement.style.setProperty('--hauteur-visible', vue.height + 'px');
-    // iOS fait glisser la page sous le clavier ; on la ramène en place.
-    if (document.body.classList.contains('vue-chat')) window.scrollTo(0, 0);
+    if (!corps.classList.contains('vue-chat')) {
+      corps.classList.remove('clavier-mesure');
+      return;
+    }
+
+    // Un clavier ouvert mange au moins une centaine de pixels ; en dessous,
+    // l'écart vient des barres du navigateur, dont svh s'occupe déjà mieux.
+    const ecart = window.innerHeight - vue.height;
+    const clavierOuvert = ecart > 100;
+
+    corps.classList.toggle('clavier-mesure', clavierOuvert);
+    if (clavierOuvert) {
+      document.documentElement.style.setProperty('--hauteur-visible', vue.height + 'px');
+      // iOS fait glisser la page pour révéler le champ ; la coquille occupant
+      // déjà tout l'écran, ce glissement ne fait que la décaler vers le haut.
+      window.scrollTo(0, 0);
+      const flux = document.getElementById('messages-stream');
+      if (flux) flux.scrollTop = flux.scrollHeight;
+    }
   };
 
-  vue.addEventListener('resize', () => {
-    appliquer();
-    // Le clavier vient de manger la moitié de l'écran : sans ça, le dernier
-    // message se retrouve hors champ juste au moment où l'on répond.
-    const flux = document.getElementById('messages-stream');
-    if (flux) flux.scrollTop = flux.scrollHeight;
-  });
+  vue.addEventListener('resize', appliquer);
   vue.addEventListener('scroll', appliquer);
+  window.addEventListener('orientationchange', () => setTimeout(appliquer, 200));
   appliquer();
 }
+
 
 /**
  * La zone de saisie grandit avec le texte, jusqu'à la limite posée par le CSS.

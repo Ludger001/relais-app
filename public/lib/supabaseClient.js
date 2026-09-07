@@ -122,3 +122,22 @@ function messageErreur(error) {
   }
   return error.message;
 }
+
+
+// =============================================================================
+// Enregistrement du service worker
+// =============================================================================
+// Il rend l'application installable sur l'écran d'accueil — la base sur laquelle
+// un emballage Capacitor ira la publier sur les magasins — et lui permet de
+// s'ouvrir malgré une coupure de réseau. Il ne met en cache que la coquille :
+// aucune donnée métier, jamais (voir public/sw.js).
+//
+// file:// n'autorise pas les service workers : l'échec y est normal, on ne
+// l'affiche pas comme une erreur.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((e) => {
+      console.info('[Relais] Service worker non enregistré :', e.message);
+    });
+  });
+}
