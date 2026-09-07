@@ -688,6 +688,18 @@ body {
 }
 
 /* 3. ESPACE CHAT (STYLE SLACK / INTERCOM MODERNE) */
+/* ---------------------------------------------------------------------------
+   LA COQUILLE DE MESSAGERIE
+
+   Une messagerie n'est pas un document qui defile : c'est un ecran fige dont
+   seule la liste des messages bouge, avec la saisie collee en bas. La version
+   precedente passait en « height: auto » sous 900px — la page atteignait alors
+   2 239px de haut sur un telephone de 844px, et il fallait tout parcourir pour
+   atteindre la zone de saisie.
+
+   dvh plutot que vh : sur telephone, la barre d'adresse se retracte au
+   defilement et 100vh depasse alors l'ecran reel.
+   --------------------------------------------------------------------------- */
 .chat-workspace-layout {
   display: grid;
   grid-template-columns: 320px 1fr;
@@ -695,8 +707,9 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  height: calc(100vh - 210px);
-  min-height: 650px;
+  /* La hauteur est mesuree, pas devinee : voir « body.vue-chat » plus bas. */
+  height: auto;
+  min-height: 420px;
   box-shadow: var(--shadow-md);
 }
 
@@ -970,11 +983,13 @@ body {
 /* BULLES DE MESSAGE DU CHAT */
 .messages-stream-container {
   flex: 1;
+  min-height: 0;              /* sinon l'enfant refuse de retrecir et deborde */
   overflow-y: auto;
-  padding: 1.5rem;
+  overscroll-behavior: contain;
+  padding: 1.25rem 1.25rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 2px;                    /* l'ecart entre auteurs est pose plus bas */
   background: #f8fafc;
 }
 
@@ -1539,13 +1554,7 @@ body {
 }
 
 @media (max-width: 900px) {
-  .chat-workspace-layout {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-  .chat-conversations-sidebar {
-    display: none;
-  }
+  /* Le comportement telephone est defini plus bas, dans « DEUX ECRANS ». */
   .admin-dashboard-grid {
     grid-template-columns: 1fr;
   }
@@ -1639,20 +1648,6 @@ img, svg, video {
   .agencies-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
-  }
-
-  /* La liste des conversations ne doit pas disparaitre sur telephone :
-     elle passe au-dessus du fil de discussion au lieu d'etre masquee */
-  .chat-workspace-layout {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-  .chat-conversations-sidebar {
-    display: block;
-    max-height: 220px;
-    overflow-y: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
   }
 
   .finance-kpis-grid {
@@ -2042,3 +2037,340 @@ img, svg, video {
   .paire-compte dd { text-align: left; }
   .btn-danger { width: 100%; }
 }
+
+/* =============================================================================
+   MESSAGERIE — LES PIECES QUI EN FONT UNE VRAIE MESSAGERIE
+   =============================================================================
+   Ajoute le 2026-09-06. Ce qui existait etait une page qui defilait ; ce qui
+   suit en fait un ecran fige ou seule la liste des messages bouge.
+   ============================================================================= */
+
+/* --- Le bouton retour : n'existe que sur telephone ------------------------- */
+.btn-retour-liste {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  margin-right: 2px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+.btn-retour-liste:hover { background: var(--bg-card-hover); color: var(--text-main); }
+.btn-retour-liste:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* --- Le bandeau des commandes se replie ----------------------------------- */
+.strip-header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  width: 100%;
+  padding: .6rem 1.25rem;
+  background: transparent;
+  border: none;
+  font-family: var(--font-main);
+  font-size: .82rem;
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+}
+.strip-header:hover { background: var(--bg-card-hover); }
+.strip-header .strip-title { font-weight: 700; flex: 1; min-width: 0; }
+.strip-header .strip-cod-total { color: var(--text-muted); white-space: nowrap; }
+.strip-chevron { color: var(--text-dim); transition: transform .2s; flex-shrink: 0; }
+.strip-header[aria-expanded="true"] .strip-chevron { transform: rotate(180deg); }
+.mini-orders-strip[data-replie="oui"] .strip-cards-scroll { display: none; }
+
+/* --- Le fil : grouper ce qui vient du meme auteur -------------------------- */
+/* Deux messages d'affilee du meme auteur se collent ; un changement d'auteur
+   ouvre un vrai blanc. C'est ce qui rend un fil lisible d'un coup d'oeil. */
+.message-bubble-wrap + .message-bubble-wrap { margin-top: 2px; }
+.message-bubble-wrap.debut-groupe { margin-top: .85rem; }
+.messages-stream-container > .message-bubble-wrap:first-child { margin-top: 0; }
+
+/* L'heure n'a pas a se repeter sous chaque bulle : seulement sous la derniere
+   du groupe. Repetee, elle hache le fil pour ne rien apprendre. */
+.message-bubble-wrap:not(.fin-groupe) .msg-time { display: none; }
+
+/* La petite pointe ne se dessine qu'au dernier message du groupe */
+.message-bubble-wrap.sent .bubble        { border-bottom-right-radius: var(--radius-md); }
+.message-bubble-wrap.received .bubble    { border-bottom-left-radius: var(--radius-md); }
+.message-bubble-wrap.sent.fin-groupe .bubble     { border-bottom-right-radius: 3px; }
+.message-bubble-wrap.received.fin-groupe .bubble { border-bottom-left-radius: 3px; }
+
+/* --- Le separateur de jour ------------------------------------------------ */
+.separateur-jour {
+  align-self: center;
+  margin: 1.1rem 0 .6rem;
+  padding: .25rem .8rem;
+  background: rgba(15, 23, 42, .06);
+  border-radius: 999px;
+  font-size: .74rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+/* --- L'etat de la conversation, dans l'en-tete ---------------------------- */
+.partner-etat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .76rem;
+  color: var(--text-dim);
+}
+.partner-etat .point {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+.partner-etat.en-ligne { color: var(--primary); }
+.partner-etat.en-ligne .point { background: var(--primary); }
+
+/* --- « en train d'ecrire… » ----------------------------------------------- */
+.indicateur-frappe {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: .35rem 0 0;
+  padding: .6rem .9rem;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  border-bottom-left-radius: 3px;
+}
+.indicateur-frappe i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-dim);
+  animation: frappe 1.3s infinite ease-in-out;
+}
+.indicateur-frappe i:nth-child(2) { animation-delay: .18s; }
+.indicateur-frappe i:nth-child(3) { animation-delay: .36s; }
+@keyframes frappe {
+  0%, 60%, 100% { opacity: .28; transform: translateY(0); }
+  30%           { opacity: 1;   transform: translateY(-3px); }
+}
+
+/* --- La saisie : une zone qui grandit avec le texte ------------------------ */
+.chat-input-bar { align-items: flex-end; }
+
+textarea.chat-input {
+  resize: none;
+  max-height: 8.5rem;      /* environ six lignes, puis la zone defile */
+  overflow-y: auto;
+  line-height: 1.45;
+  font-size: 16px;         /* sous 16px, iOS zoome tout seul a la mise au point */
+}
+
+.btn-send:disabled {
+  opacity: .4;
+  cursor: default;
+}
+.btn-send, .btn-attach { flex-shrink: 0; }
+
+/* =============================================================================
+   DEUX ECRANS SUR TELEPHONE
+   =============================================================================
+   Sous 900px, la liste et la conversation ne tiennent pas cote a cote. Plutot
+   que de les empiler — ce que faisait la version precedente, obligeant a faire
+   defiler toute la liste pour atteindre la saisie — on montre l'une OU l'autre,
+   comme le fait n'importe quelle messagerie. La classe « voir-fil » posee sur
+   la coquille dit laquelle.
+   ============================================================================= */
+@media (max-width: 900px) {
+  .chat-workspace-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    border-radius: var(--radius-lg);
+    /* La hauteur n'est plus devinee : voir « body.vue-chat » plus bas. Elle
+       etait calculee en retranchant une constante a 100dvh, et cette constante
+       etait fausse des que le rappel de securite se repliait sur trois lignes
+       plutot que deux — la saisie passait alors sous la ligne de flottaison. */
+    height: auto;
+    min-height: 0;
+  }
+
+  /* Les deux panneaux occupent la meme case de la grille : un seul est visible. */
+  .chat-conversations-sidebar,
+  .chat-main-window {
+    grid-area: 1 / 1;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .chat-conversations-sidebar { border-right: none; }
+
+  .chat-workspace-layout:not(.voir-fil) .chat-main-window       { display: none; }
+  .chat-workspace-layout.voir-fil .chat-conversations-sidebar   { display: none; }
+
+  .btn-retour-liste { display: inline-flex; }
+
+  /* L'en-tete reste sur une ligne : le retour, l'avatar, le nom, les actions. */
+  .chat-header-bar { flex-direction: row; align-items: center; gap: .6rem; }
+
+  /* « Nouvelle Commande » est l'action centrale du produit : elle ne disparait
+     pas sur telephone, elle se reduit a son icone. font-size: 0 efface le
+     libelle textuel ; le SVG a des dimensions propres et survit. */
+  .chat-actions-group { display: flex; gap: .4rem; flex-shrink: 0; width: auto; }
+  .chat-actions-group .btn {
+    font-size: 0;
+    padding: .5rem;
+    min-width: 40px;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+
+  .messages-stream-container { padding: 1rem .9rem .75rem; }
+  .message-bubble-wrap { max-width: 85%; }
+  .chat-input-bar { padding: .6rem .75rem; }
+}
+
+/* Sur ordinateur, les deux panneaux sont cote a cote en permanence : la classe
+   posee par le telephone ne doit rien changer. */
+@media (min-width: 901px) {
+  .chat-workspace-layout.voir-fil .chat-conversations-sidebar { display: flex; }
+}
+
+/* =============================================================================
+   LA MESSAGERIE OCCUPE EXACTEMENT CE QUI RESTE DE L'ECRAN
+   =============================================================================
+   Plutot que de retrancher une constante a 100dvh — fausse des que l'en-tete
+   ou le rappel de securite change de hauteur — on laisse le navigateur mesurer.
+   La chaine part de body : chaque maillon prend ce qui reste, et « min-height: 0 »
+   autorise chaque enfant a retrecir. Sans ce min-height, un element de flex
+   refuse de descendre sous la taille de son contenu et deborde.
+
+   La classe vue-chat est posee par switchTab() : elle ne s'applique donc que
+   sur l'onglet de discussion, jamais sur les autres ecrans qui, eux, defilent
+   normalement.
+   ============================================================================= */
+body.vue-chat {
+  height: 100dvh;
+  overflow: hidden;            /* la page ne defile pas : seul le fil le fait */
+}
+body.vue-chat .app-main-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 1rem;
+}
+body.vue-chat #view-chat.active {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+body.vue-chat .chat-workspace-layout {
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  body.vue-chat .app-main-content { padding: .75rem .75rem 0; }
+
+  /* Le rappel de securite occupait cinq lignes avant le premier message. */
+  body.vue-chat .rappel-securite {
+    margin-bottom: .6rem;
+    padding: .5rem .7rem;
+    font-size: .76rem;
+    line-height: 1.4;
+  }
+}
+
+/* =============================================================================
+   RENDRE L'ECRAN A LA CONVERSATION
+   =============================================================================
+   Une fois la coquille en place, il restait environ 100px pour les messages :
+   l'en-tete de l'application occupait trois rangees, le rappel de securite
+   cinq lignes, le bandeau des commandes etait deplie. Une messagerie doit
+   donner l'essentiel de l'ecran a ce qu'on lit et ecrit.
+   ============================================================================= */
+@media (max-width: 900px) {
+
+  /* --- L'en-tete de l'application tient sur une rangee ---------------------- */
+  body.vue-chat .app-header .header-container {
+    flex-wrap: nowrap;
+    padding: .5rem .85rem;
+    gap: .6rem;
+  }
+  body.vue-chat .logo-icon { width: 30px; height: 30px; }
+  body.vue-chat .brand-name { font-size: .95rem; }
+
+  /* La pastille d'abonnement est deja lisible sur le tableau de bord ; ici elle
+     coute une rangee entiere pour une information qui ne change pas. */
+  body.vue-chat .subscription-pill { display: none; }
+
+  body.vue-chat .header-actions {
+    width: auto;
+    flex-wrap: nowrap;
+    gap: .5rem;
+    min-width: 0;
+  }
+  body.vue-chat .session-identity { min-width: 0; }
+  body.vue-chat .session-texte { display: none; }   /* l'avatar suffit */
+  /* Les deux boutons restent lisibles : un pictogramme obscur ferait douter
+     l'utilisateur au moment ou il cherche a se deconnecter. */
+  body.vue-chat .header-boutons { width: auto; flex-shrink: 0; }
+  body.vue-chat .header-boutons .btn,
+  body.vue-chat .header-boutons .btn-logout {
+    font-size: .72rem;
+    padding: .35rem .55rem;
+    white-space: nowrap;
+  }
+
+  /* --- Le rappel de securite : une ligne, pas cinq ------------------------- */
+  /* La regle reste affichee — elle est le coeur du modele — mais elle n'a pas
+     a repousser le premier message hors de l'ecran a chaque ouverture. */
+  body.vue-chat .rappel-securite {
+    display: block;
+    max-height: 2.6em;
+    overflow: hidden;
+    position: relative;
+  }
+  body.vue-chat .rappel-securite::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 1.1em;
+    background: linear-gradient(transparent, var(--primary-light));
+  }
+
+  /* --- L'en-tete de la conversation : une seule ligne ---------------------- */
+  .chat-header-bar { padding: .55rem .75rem; }
+  .chat-partner-info { min-width: 0; flex: 1; gap: .5rem; }
+  .chat-partner-info > div:last-child { min-width: 0; }
+  .partner-name-row { gap: .4rem; min-width: 0; }
+  .partner-name {
+    font-size: .95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Le badge et la ligne « ville · reversement » sont dans l'annuaire et sur la
+     fiche de l'agence ; les repeter ici coute deux lignes a chaque message lu. */
+  .chat-header-bar .verified-badge-sm,
+  .chat-header-bar .partner-meta { display: none; }
+  .partner-avatar { width: 34px; height: 34px; font-size: 1rem; flex-shrink: 0; }
+
+  /* --- Le bandeau des commandes reste replie tant qu'on ne l'ouvre pas ----- */
+  .strip-header { padding: .5rem .75rem; font-size: .78rem; }
+  .strip-header .strip-cod-total { font-size: .74rem; }
+}
+
+/* Le bandeau portait son propre rembourrage en plus de celui du bouton : replie,
+   il occupait encore 81px pour une seule ligne de texte. Le bouton porte
+   desormais tout l'espacement, et le bandeau n'en ajoute aucun. */
+.mini-orders-strip { padding: 0; }
+.mini-orders-strip .strip-cards-scroll { padding: 0 1.25rem .6rem; }
+
+@media (max-width: 900px) {
+  .mini-orders-strip .strip-cards-scroll { padding: 0 .75rem .5rem; }
+}
+
+/* La barre d'onglets defile pour amener l'onglet actif a l'ecran ; sans marge
+   de defilement, elle s'arretait pile sur le bord et coupait le libelle voisin
+   en plein milieu d'un mot. */
+.tabs-container { scroll-padding-inline: 1rem; }

@@ -102,6 +102,33 @@ question que son lecteur se pose en arrivant, et à elle seule :
   aucun résultat pour ces critères
 
 ### Chat sécurisé
+
+**La coquille de messagerie.** L'onglet de discussion n'est pas une page qui
+défile : c'est un écran figé à la hauteur de la fenêtre, dont seule la liste des
+messages bouge, la saisie restant collée en bas. `switchTab()` pose la classe
+`vue-chat` sur `<body>` ; une chaîne de `flex: 1` + `min-height: 0` part de là
+et laisse le navigateur mesurer l'espace restant. On ne retranche aucune
+constante à `100dvh` : la version précédente le faisait, et la constante devenait
+fausse dès que le rappel de sécurité se repliait sur une ligne de plus — la zone
+de saisie passait alors sous la ligne de flottaison.
+
+Sous 900 px, la liste des conversations et le fil occupent **la même case de la
+grille** : un seul est visible à la fois, la classe `voir-fil` dit lequel. C'est
+le comportement de toutes les messageries. Les empiler — ce que faisait la
+version précédente — obligeait à faire défiler toute la liste pour atteindre la
+saisie, et portait la page à 2 239 px sur un téléphone de 844 px.
+
+- `interactive-widget=resizes-content` : le clavier virtuel redimensionne la
+  mise en page au lieu de la recouvrir
+- Entrée envoie, Maj+Entrée passe à la ligne — sauf sur téléphone, où la touche
+  du clavier virtuel vaut « nouvelle ligne »
+- La zone de saisie grandit avec le texte jusqu'à six lignes, puis défile
+- Les messages consécutifs d'un même auteur sont groupés ; l'heure n'apparaît
+  que sous le dernier du groupe, et un séparateur marque chaque changement de jour
+- Le bandeau des commandes est replié par défaut sur téléphone
+- Les boutons « Tester le filtre anti-fuite » ne sont visibles **que** pour
+  l'administrateur : ils étaient livrés à tous les clients
+
 - Une conversation exclusive par paire marchand–agence
 - Seul un marchand peut ouvrir une conversation, et seulement vers une agence
   certifiée

@@ -6,7 +6,12 @@ const boutons = {}, panneaux = {};
 function el(extra={}) {
   return Object.assign({
     textContent:'', innerHTML:'', value:'ALL', style:{}, dataset:{}, hidden:false, disabled:false,
-    classList:{ _s:new Set(), add(c){this._s.add(c);}, remove(c){this._s.delete(c);}, contains(c){return this._s.has(c);} },
+    classList:{ _s:new Set(),
+      add(c){this._s.add(c);},
+      remove(c){this._s.delete(c);},
+      contains(c){return this._s.has(c);},
+      toggle(c, force){ const on = force === undefined ? !this._s.has(c) : !!force;
+                        on ? this._s.add(c) : this._s.delete(c); return on; } },
     children:[], options:[], scrollTop:0, scrollHeight:0,
     addEventListener(){}, querySelectorAll(){return [];}, querySelector(){return null;},
     scrollIntoView(){}, focus(){}, reset(){}
@@ -15,7 +20,11 @@ function el(extra={}) {
 ONGLETS.forEach(t => { boutons[t] = el({ dataset:{tab:t} }); panneaux[t] = el({ id:'view-'+t }); });
 
 const cache = {};
+// switchTab pose une classe sur body pour passer la messagerie en plein ecran :
+// le faux document doit donc en avoir un.
+const corps = el();
 global.document = {
+  body: corps,
   addEventListener(){},
   getElementById(id){
     const m = id.match(/^view-(.+)$/); if (m && panneaux[m[1]]) return panneaux[m[1]];

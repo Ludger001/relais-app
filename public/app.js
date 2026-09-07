@@ -271,6 +271,12 @@ function appliquerProfil(profil) {
 
   appliquerOngletsAutorises(profil.role);
 
+  // Les boutons « Tester le filtre anti-fuite » sont de l'outillage : ils
+  // étaient livrés à tous les clients, sous la zone de saisie. Ils ne servent
+  // qu'à l'administrateur, pour montrer le bouclier à l'œuvre.
+  const outillage = document.getElementById('quick-test-prompts');
+  if (outillage) outillage.hidden = profil.role !== 'admin';
+
   // Bandeau d'abonnement
   const pastille = document.getElementById('sub-status-text');
   if (pastille) {
@@ -468,17 +474,66 @@ function setupChat() {
   }
 
   sendBtn?.addEventListener('click', handleSend);
-  inputField?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleSend();
+
+  /**
+   * Entrée envoie, Maj+Entrée passe à la ligne — la convention de toutes les
+   * messageries. Sur téléphone, la touche du clavier virtuel vaut « nouvelle
+   * ligne » : on n'envoie pas, sinon un message sur deux part en morceaux.
+   */
+  inputField?.addEventListener('keydown', (e) => {
+    const surTelephone = window.matchMedia('(max-width: 900px)').matches;
+    if (e.key === 'Enter' && !e.shiftKey && !surTelephone) {
+      e.preventDefault();
+      handleSend();
+    }
   });
 
-  // Boutons d'essais rapides pour tester les filtres
+  inputField?.addEventListener('input', ajusterHauteurSaisie);
+  ajusterHauteurSaisie();
+
+  // Revenir à la liste des conversations — n'a de sens que sur téléphone,
+  // où les deux panneaux ne tiennent pas côte à côte.
+  document.getElementById('btn-retour-liste')?.addEventListener('click', () => {
+    document.querySelector('.chat-workspace-layout')?.classList.remove('voir-fil');
+  });
+
+  // Le bandeau des commandes se replie : sur téléphone il mangeait la moitié
+  // de l'écran avant qu'on ait vu le premier message.
+  const bascule = document.getElementById('strip-bascule');
+  const bandeau = document.getElementById('chat-orders-strip');
+  bascule?.addEventListener('click', () => {
+    const replie = bandeau.dataset.replie !== 'non';
+    bandeau.dataset.replie = replie ? 'non' : 'oui';
+    bascule.setAttribute('aria-expanded', String(replie));
+  });
+
+  // Outillage de démonstration du filtre, réservé à l'administrateur.
   document.querySelectorAll('.btn-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       inputField.value = chip.dataset.test;
+      ajusterHauteurSaisie();
       inputField.focus();
     });
   });
+}
+
+/**
+ * La zone de saisie grandit avec le texte, jusqu'à la limite posée par le CSS.
+ *
+ * Elle vit hors de setupChat() parce qu'elle doit être rappelée quand l'onglet
+ * redevient visible : mesurée pendant que le panneau est en display:none,
+ * scrollHeight vaut 0 et la zone se figeait à zéro pixel de haut — le texte
+ * saisi était alors invisible.
+ */
+function ajusterHauteurSaisie() {
+  const champ = document.getElementById('chat-input-field');
+  const envoi = document.getElementById('btn-send-message');
+  if (!champ) return;
+
+  if (envoi) envoi.disabled = champ.value.trim().length === 0;
+
+  champ.style.height = 'auto';
+  if (champ.scrollHeight > 0) champ.style.height = champ.scrollHeight + 'px';
 }
 
 function renderConversationsSidebar() {
@@ -542,6 +597,11 @@ function selectConversation(agencyId) {
   renderActiveChat();
   renderOrdersStrip();
   renderFinanceView();
+
+  // Sur téléphone, ouvrir une conversation fait glisser vers le fil ; sur
+  // ordinateur la classe ne change rien, les deux panneaux restent côte à côte.
+  document.querySelector('.chat-workspace-layout')?.classList.add('voir-fil');
+  document.getElementById('chat-input-field')?.focus({ preventScroll: true });
 }
 
 /**
@@ -809,24 +869,71 @@ function renderActiveChat() {
       .map(o => ({ type: 'commande', date: o.createdAt, donnees: o }))
   ].sort((a, b) => a.date - b.date);
 
-  container.innerHTML = elements.map(el => {
-    if (el.type === 'commande') return carteCommande(el.donnees);
+  // Qui parle : on le calcule une fois pour pouvoir grouper.
+  const estDeMoi = (m) =>
+    (state.currentRole === 'merchant' && m.sender === 'merchant') ||
+    (state.currentRole === 'agency' && m.sender === 'agency');
+
+  container.innerHTML = elements.map((el, i) => {
+    const separateur = separateurDeJour(el.date, elements[i - 1]?.date);
+
+    if (el.type === 'commande') return separateur + carteCommande(el.donnees);
 
     const m = el.donnees;
-    const isSent = (state.currentRole === 'merchant' && m.sender === 'merchant') ||
-                   (state.currentRole === 'agency' && m.sender === 'agency');
-    return `
-      <div class="message-bubble-wrap ${isSent ? 'sent' : 'received'}">
+    const moi = estDeMoi(m);
+
+    // Un message ouvre un groupe s'il change d'auteur, s'il suit un bon de
+    // commande, ou s'il commence une nouvelle journée. Il le ferme dans les
+    // mêmes cas, vus depuis le message suivant. Deux messages d'affilée du même
+    // auteur se collent : c'est ce qui distingue un fil lisible d'une colonne
+    // de blocs identiques.
+    const precedent = elements[i - 1];
+    const suivant   = elements[i + 1];
+    const debut = !!separateur || !precedent || precedent.type !== 'message'
+                  || estDeMoi(precedent.donnees) !== moi;
+    const fin   = !suivant || suivant.type !== 'message'
+                  || estDeMoi(suivant.donnees) !== moi
+                  || !!separateurDeJour(suivant.date, el.date);
+
+    return separateur + `
+      <div class="message-bubble-wrap ${moi ? 'sent' : 'received'}${debut ? ' debut-groupe' : ''}${fin ? ' fin-groupe' : ''}">
         <div class="bubble ${m.hasViolation ? 'violation' : ''}">
           ${echapperHtml(m.text)}
         </div>
-        <span class="msg-time">${m.time}</span>
+        <span class="msg-time">${echapperHtml(m.time)}</span>
       </div>
     `;
   }).join('');
 
   container.scrollTop = container.scrollHeight;
   renderOrdersStrip();
+  ajusterHauteurSaisie();   // le panneau est visible : la mesure est enfin juste
+}
+
+/**
+ * « Aujourd'hui », « Hier », sinon la date en toutes lettres. Rendu seulement
+ * quand on change de journée : un fil sans repère temporel oblige à lire les
+ * heures une par une pour savoir de quand date un échange.
+ */
+function separateurDeJour(date, datePrecedente) {
+  if (!(date instanceof Date) || isNaN(date)) return '';
+  const jour = (d) => d.toDateString();
+  if (datePrecedente instanceof Date && !isNaN(datePrecedente)
+      && jour(datePrecedente) === jour(date)) return '';
+
+  const aujourdhui = new Date();
+  const hier = new Date();
+  hier.setDate(hier.getDate() - 1);
+
+  let libelle;
+  if (jour(date) === jour(aujourdhui))  libelle = "Aujourd'hui";
+  else if (jour(date) === jour(hier))   libelle = 'Hier';
+  else libelle = date.toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long',
+    year: date.getFullYear() === aujourdhui.getFullYear() ? undefined : 'numeric'
+  });
+
+  return `<div class="separateur-jour">${echapperHtml(libelle)}</div>`;
 }
 
 // =============================================================================
@@ -838,8 +945,20 @@ function renderOrdersStrip() {
   const countEl = document.getElementById('strip-order-count');
   const sumEl = document.getElementById('strip-cod-sum');
 
+  // Sur téléphone, le bandeau déplié occupait un quart de l'écran avant qu'on
+  // ait vu le premier message. Il s'ouvre d'un geste ; sur ordinateur, où la
+  // place ne manque pas, il reste ouvert. On ne touche pas à un choix déjà
+  // fait par l'utilisateur pendant sa session.
+  const bandeau = document.getElementById('chat-orders-strip');
+  const bascule = document.getElementById('strip-bascule');
+  if (bandeau && !bandeau.dataset.replie) {
+    const surTelephone = window.matchMedia('(max-width: 900px)').matches;
+    bandeau.dataset.replie = surTelephone ? 'oui' : 'non';
+    bascule?.setAttribute('aria-expanded', String(!surTelephone));
+  }
+
   const agencyOrders = state.orders.filter(o => o.agencyId === state.selectedAgencyId);
-  
+
   if (countEl) countEl.textContent = agencyOrders.length;
 
   const totalCod = agencyOrders.reduce((acc, curr) => acc + curr.codAmount, 0);
@@ -2060,6 +2179,11 @@ function switchTab(tabName) {
 
   if (activeBtn) activeBtn.classList.add('active');
   if (activePanel) activePanel.classList.add('active');
+
+  // Seul l'onglet de discussion se comporte en application plein écran : la
+  // page ne défile pas, c'est le fil de messages qui défile à l'intérieur.
+  // Les autres écrans restent des pages ordinaires.
+  document.body.classList.toggle('vue-chat', tabName === 'chat');
 
   if (tabName === 'finance') renderFinanceView();
   if (tabName === 'chat') renderActiveChat();

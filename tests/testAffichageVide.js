@@ -5,9 +5,10 @@ const src = fs.readFileSync(require('path').join(__dirname, '..', 'public', 'app
 function faireElement(id) {
   const el = {
     id, textContent: '', innerHTML: '', value: 'ALL', checked: false,
-    style: {}, dataset: {}, classList: { add(){}, remove(){}, contains(){ return false; } },
+    style: {}, dataset: {}, classList: { add(){}, remove(){}, contains(){ return false; }, toggle(){ return false; } },
     children: [], options: [], hidden: false, disabled: false, scrollTop: 0, scrollHeight: 0,
     addEventListener(){}, removeEventListener(){}, appendChild(){},
+    setAttribute(){}, getAttribute(){ return null; }, removeAttribute(){},
     querySelectorAll(){ return []; }, querySelector(){ return null; },
     scrollIntoView(){}, focus(){}, reset(){}
   };
@@ -15,14 +16,21 @@ function faireElement(id) {
 }
 
 const cache = {};
+// switchTab bascule la messagerie en plein ecran via une classe sur body.
 global.document = {
+  body: faireElement('body'),
   addEventListener(){},
   getElementById(id) { return (cache[id] = cache[id] || faireElement(id)); },
   querySelectorAll(){ return []; },
   querySelector(){ return null; },
   createElement(){ return faireElement('tmp'); }
 };
-global.window = { location: { href: '' } };
+// La messagerie adapte son comportement au format de l'ecran ; hors navigateur,
+// on repond « ce n'est pas un telephone ».
+global.window = {
+  location: { href: '' },
+  matchMedia: () => ({ matches: false, addEventListener(){}, removeEventListener(){} })
+};
 global.alert = () => {};
 
 // Supabase absent : on simule un client qui renvoie une liste vide
