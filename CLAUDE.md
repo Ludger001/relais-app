@@ -3,6 +3,33 @@
 **Lire `DOCUMENTATION.md` en premier.** Il contient le modèle métier, la structure,
 le modèle d'habilitations complet et les décisions de design.
 
+## Reprendre le travail, depuis n'importe où
+
+Tout ce qui compte vit dans ce dépôt et dans les services : rien d'essentiel
+n'est enfermé dans une conversation. Pour reprendre, il suffit de :
+
+| Où | Quoi |
+|---|---|
+| Ce dépôt | `github.com/Ludger001/relais-app` — le code et ces trois fichiers de repères |
+| Base de données | Supabase **relais-hub**, réf. `uqusictqdviahnxpzylu` |
+| Site en ligne | `relais-app-wwk4.vercel.app` — redéployé à chaque `git push` |
+| Comptes d'essai | `marchand@`, `agence@`, `admin@demo.relais` · `RelaisDemo2026` |
+
+**Lancer depuis le dossier du projet** (`Projets/relais-app`), pas depuis
+ailleurs : c'est ce qui fait charger ce fichier automatiquement.
+
+## Comment l'utilisateur veut qu'on travaille
+
+**Il est vibecodeur, francophone, peu de bases techniques.** Expliquer en
+français, pas à pas, sans supposer connu le vocabulaire. Dire ce qu'on a
+vérifié et ce qu'on n'a pas pu vérifier.
+
+**Vérifier sur Internet avant d'affirmer.** Avant d'écrire du code contre une
+API tierce, de citer un réglage, un quota ou un nom de champ : consulter la
+documentation officielle et citer la source. Ne jamais énoncer de mémoire un
+fait vérifiable. Cette consigne est venue d'une réponse obsolète qui lui a fait
+perdre du temps.
+
 ## Ce qu'il ne faut jamais casser
 
 **Le filtre anti-désintermédiation est le modèle économique.** Si marchand et
