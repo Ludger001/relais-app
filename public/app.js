@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   appliquerProfil(profil);
 
   await chargerAgences();
-  await chargerConversations();
+  await chargerFils();
   await chargerCommandes();
   await chargerPointsFinanciers();
   await chargerAbonnement();
@@ -414,88 +414,93 @@ function setupCountryFilters() {
 // =============================================================================
 
 function setupChat() {
-  renderConversationsSidebar();
-  renderActiveChat();
+  renderListeFils();
+  renderFil();
+  surveillerDefilement();
 
   const sendBtn = document.getElementById('btn-send-message');
   const inputField = document.getElementById('chat-input-field');
 
-  /**
-   * L'envoi passe obligatoirement par la fonction serveur `envoyer-message`.
-   * Le droit d'écrire dans la table `messages` a été retiré au navigateur :
-   * ce que fait ici le filtre local n'est qu'un avertissement anticipé, il
-   * n'a aucun pouvoir de décision.
-   */
-  async function handleSend(pieceJointe = null) {
-    const rawText = inputField.value.trim();
-    if (!rawText && !pieceJointe) return;
-
-    const conversationId = state.conversationIds[state.selectedAgencyId];
-    if (!conversationId) {
-      alert("Ouvrez d'abord une conversation depuis l'annuaire.");
-      return;
-    }
-
-    // Avertissement immédiat, avant même l'aller-retour réseau
-    const apercu = inspectAndSanitizeMessage(rawText);
-    if (apercu.isBlocked) {
-      const toast = document.getElementById('filter-alert-toast');
-      if (toast) {
-        toast.style.display = 'block';
-        clearTimeout(toast._minuterie);
-        toast._minuterie = setTimeout(() => { toast.style.display = 'none'; }, 6000);
-      }
-    }
-
+  const envoyer = async () => {
+    if (!inputField || inputField.disabled) return;
     inputField.disabled = true;
-    sendBtn.disabled = true;
-
-    try {
-      const { error } = await db.functions.invoke('envoyer-message', {
-        body: {
-          conversation_id: conversationId,
-          content: rawText,
-          piece_jointe: pieceJointe || undefined
-        }
-      });
-
-      if (error) {
-        // Le serveur explique pourquoi il refuse — cadence dépassée, compte
-        // désactivé, conversation bloquée. La version précédente jetait cette
-        // explication et affichait « Réessayez dans un instant » : on ne
-        // pouvait pas savoir qu'il fallait simplement patienter une minute.
-        console.error('[Relais] Envoi refusé :', error);
-        alert(await messageDErreurServeur(error));
-        return;
-      }
-
-      inputField.value = '';
-      // On relit depuis la base : c'est le texte réellement enregistré,
-      // pas celui que le navigateur croyait envoyer.
-      await chargerMessages(state.selectedAgencyId);
-      renderActiveChat();
-      renderConversationsSidebar();
-
-    } finally {
+    if (sendBtn) sendBtn.disabled = true;
+    try { await envoyerMessage(); }
+    finally {
       inputField.disabled = false;
-      inputField.focus();
-      ajusterHauteurSaisie();   // règle aussi l'état du bouton d'envoi
+      inputField.focus({ preventScroll: true });
+      ajusterHauteurSaisie();
     }
-  }
+  };
+
+  sendBtn?.addEventListener('click', envoyer);
 
   /**
-   * Dépose une photo ou un document, puis l'envoie comme message.
-   *
-   * Le chemin commence par l'identifiant de la conversation : c'est ce que
-   * lisent les règles du dépôt pour vérifier que l'on en est bien participant,
-   * et c'est ce que revérifie la fonction serveur avant d'attacher le fichier.
+   * Entrée envoie, Maj+Entrée passe à la ligne — partout, téléphone compris.
+   * L'attribut enterkeyhint demande au clavier virtuel d'étiqueter cette
+   * touche « Envoyer », ce qui lève l'ambiguïté au lieu de la créer.
    */
-  async function envoyerFichier(fichier) {
-    const conversationId = state.conversationIds[state.selectedAgencyId];
-    if (!conversationId) {
-      alert("Ouvrez d'abord une conversation depuis l'annuaire.");
-      return;
-    }
+  inputField?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envoyer(); }
+  });
+
+  inputField?.addEventListener('input', () => {
+    ajusterHauteurSaisie();
+    signalerFrappe();          // l'autre voit « en train d'écrire… »
+  });
+  ajusterHauteurSaisie();
+
+  document.getElementById('recherche-conversations')
+    ?.addEventListener('input', (e) => filtrerListe(e.target.value));
+
+  // Revenir à la liste — n'a de sens que sur téléphone, où les deux panneaux
+  // ne tiennent pas côte à côte.
+  document.getElementById('btn-retour-liste')?.addEventListener('click', () => {
+    document.querySelector('.chat-workspace-layout')?.classList.remove('voir-fil');
+  });
+
+  // Le bandeau des commandes se replie : sur téléphone il mangeait le quart
+  // de l'écran avant qu'on ait vu le premier message.
+  const bascule = document.getElementById('strip-bascule');
+  const bandeau = document.getElementById('chat-orders-strip');
+  bascule?.addEventListener('click', () => {
+    const replie = bandeau.dataset.replie !== 'non';
+    bandeau.dataset.replie = replie ? 'non' : 'oui';
+    bascule.setAttribute('aria-expanded', String(replie));
+  });
+
+  setupPiecesJointes();
+
+  // Outillage de démonstration du filtre, réservé à l'administrateur.
+  document.querySelectorAll('.btn-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      inputField.value = chip.dataset.test;
+      ajusterHauteurSaisie();
+      inputField.focus();
+    });
+  });
+}
+
+/**
+ * Dépose une photo ou un document, puis l'envoie comme message.
+ *
+ * Le chemin commence par l'identifiant de la conversation : c'est ce que lisent
+ * les règles du dépôt pour vérifier qu'on en est bien participant, et ce que
+ * revérifie la fonction serveur avant d'attacher le fichier.
+ */
+function setupPiecesJointes() {
+  const champFichier = document.getElementById('chat-fichier');
+  const bouton = document.getElementById('btn-attach');
+
+  bouton?.addEventListener('click', () => champFichier?.click());
+
+  champFichier?.addEventListener('change', async () => {
+    const fichier = champFichier.files?.[0];
+    champFichier.value = '';   // sinon renvoyer le même fichier ne déclenche rien
+    if (!fichier) return;
+
+    const conversationId = messagerie.actif;
+    if (!conversationId) { alert("Ouvrez d'abord une conversation."); return; }
 
     const TAILLE_MAX = 5 * 1024 * 1024;
     if (fichier.size > TAILLE_MAX) {
@@ -506,80 +511,20 @@ function setupChat() {
     const extension = (fichier.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
     const chemin = `${conversationId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
 
-    const boutonJoindre = document.getElementById('btn-attach');
-    if (boutonJoindre) boutonJoindre.disabled = true;
-
+    if (bouton) bouton.disabled = true;
     try {
-      const { error } = await db.storage.from('pieces-chat').upload(chemin, fichier, {
-        contentType: fichier.type,
-        upsert: false
-      });
+      const { error } = await db.storage.from('pieces-chat')
+        .upload(chemin, fichier, { contentType: fichier.type, upsert: false });
 
       if (error) {
         console.error('[Relais] Dépôt refusé :', error);
         alert("Ce fichier n'a pas pu être envoyé. Vérifiez qu'il s'agit d'une image ou d'un PDF de moins de 5 Mo.");
         return;
       }
-
-      await handleSend(chemin);
-
+      await envoyerMessage(chemin);
     } finally {
-      if (boutonJoindre) boutonJoindre.disabled = false;
+      if (bouton) bouton.disabled = false;
     }
-  }
-
-  const champFichier = document.getElementById('chat-fichier');
-  document.getElementById('btn-attach')?.addEventListener('click', () => champFichier?.click());
-  champFichier?.addEventListener('change', async () => {
-    const fichier = champFichier.files?.[0];
-    if (fichier) await envoyerFichier(fichier);
-    champFichier.value = '';   // sinon renvoyer le même fichier ne déclenche rien
-  });
-
-  sendBtn?.addEventListener('click', handleSend);
-
-  /**
-   * Entrée envoie, Maj+Entrée passe à la ligne — partout, téléphone compris.
-   *
-   * La version précédente ne l'appliquait pas sur téléphone, de peur de couper
-   * les messages en morceaux. Le résultat était pire : on tapait, on appuyait
-   * sur la touche du clavier, et rien ne partait. L'attribut enterkeyhint
-   * demande au clavier virtuel d'étiqueter cette touche « Envoyer », ce qui
-   * lève l'ambiguïté au lieu de la créer.
-   */
-  inputField?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  });
-
-  inputField?.addEventListener('input', ajusterHauteurSaisie);
-  ajusterHauteurSaisie();
-
-  // Revenir à la liste des conversations — n'a de sens que sur téléphone,
-  // où les deux panneaux ne tiennent pas côte à côte.
-  document.getElementById('btn-retour-liste')?.addEventListener('click', () => {
-    document.querySelector('.chat-workspace-layout')?.classList.remove('voir-fil');
-  });
-
-  // Le bandeau des commandes se replie : sur téléphone il mangeait la moitié
-  // de l'écran avant qu'on ait vu le premier message.
-  const bascule = document.getElementById('strip-bascule');
-  const bandeau = document.getElementById('chat-orders-strip');
-  bascule?.addEventListener('click', () => {
-    const replie = bandeau.dataset.replie !== 'non';
-    bandeau.dataset.replie = replie ? 'non' : 'oui';
-    bascule.setAttribute('aria-expanded', String(replie));
-  });
-
-  // Outillage de démonstration du filtre, réservé à l'administrateur.
-  document.querySelectorAll('.btn-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      inputField.value = chip.dataset.test;
-      ajusterHauteurSaisie();
-      inputField.focus();
-    });
   });
 }
 
@@ -671,73 +616,7 @@ function ajusterHauteurSaisie() {
   if (champ.scrollHeight > 0) champ.style.height = champ.scrollHeight + 'px';
 }
 
-function renderConversationsSidebar() {
-  const container = document.getElementById('conversations-list-container');
-  if (!container) return;
 
-  const agencyList = state.agencies.filter(a => state.conversations[a.id]);
-
-  // Compteurs : ils affichaient « 2 agences » et « 1 » en dur
-  const compteur = document.getElementById('active-chats-count');
-  if (compteur) {
-    compteur.textContent = agencyList.length === 0
-      ? 'Aucune'
-      : `${agencyList.length} ${agencyList.length > 1 ? 'agences' : 'agence'}`;
-  }
-
-  const badgeOnglet = document.getElementById('chat-badge-count');
-  if (badgeOnglet) {
-    badgeOnglet.textContent = agencyList.length;
-    badgeOnglet.hidden = agencyList.length === 0;
-  }
-
-  if (agencyList.length === 0) {
-    // Une agence n'a pas accès à l'annuaire : lui dire d'y aller n'aurait aucun sens
-    const message = state.currentRole === 'agency'
-      ? `Aucun e-commerçant ne vous a encore contacté.<br>
-         Les demandes arriveront ici dès qu'un marchand ouvrira une conversation.`
-      : `Aucune conversation pour l'instant.<br>
-         Contactez une agence depuis l'annuaire pour en ouvrir une.`;
-
-    container.innerHTML = `
-      <div style="padding:1.5rem; color: var(--text-dim); font-size:.85rem; line-height:1.6;">
-        ${message}
-      </div>`;
-    return;
-  }
-
-  container.innerHTML = agencyList.map(agency => {
-    const msgs = state.conversations[agency.id] || [];
-    const lastMsg = msgs[msgs.length - 1]?.text || 'Nouvelle conversation';
-    const isActive = agency.id === state.selectedAgencyId;
-
-    return `
-      <div class="conv-item ${isActive ? 'active' : ''}" onclick="selectConversation('${agency.id}')">
-        <div class="conv-avatar">${agency.flag}</div>
-        <div class="conv-info">
-          <div class="conv-name-row">
-            <span class="conv-name">${echapperHtml(agency.name)}</span>
-            <span class="conv-time">10:18</span>
-          </div>
-          <div class="conv-last-msg">${echapperHtml(lastMsg)}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function selectConversation(agencyId) {
-  state.selectedAgencyId = agencyId;
-  renderConversationsSidebar();
-  renderActiveChat();
-  renderOrdersStrip();
-  renderFinanceView();
-
-  // Sur téléphone, ouvrir une conversation fait glisser vers le fil ; sur
-  // ordinateur la classe ne change rien, les deux panneaux restent côte à côte.
-  document.querySelector('.chat-workspace-layout')?.classList.add('voir-fil');
-  document.getElementById('chat-input-field')?.focus({ preventScroll: true });
-}
 
 /**
  * Ouvre — ou crée en base — la conversation avec une agence.
@@ -760,62 +639,19 @@ async function startChatWithAgency(agencyId) {
       .select('id')
       .single();
 
-    if (error) {
-      // Code 23505 : la conversation existait déjà, on la récupère
-      if (error.code === '23505') {
-        await chargerConversations();
-      } else {
-        console.error('[Relais] Ouverture de conversation impossible :', error.message);
-        alert("La conversation n'a pas pu être ouverte. Réessayez dans un instant.");
-        return;
-      }
-    } else {
-      state.conversationIds[agencyId] = data.id;
-      state.conversations[agencyId] = [];
+    if (error && error.code !== '23505') {
+      // 23505 : la conversation existait déjà — chargerFils la retrouvera.
+      console.error('[Relais] Ouverture de conversation impossible :', error.message);
+      alert("La conversation n'a pas pu être ouverte. Réessayez dans un instant.");
+      return;
     }
   }
 
-  await chargerMessages(agencyId);
-  renderConversationsSidebar();
-  renderActiveChat();
+  await chargerFils();
+  const fil = messagerie.fils.find((f) => f.agence_id === agencyId);
+  if (fil) await ouvrirFil(fil.conversation_id);
 }
 
-/**
- * Charge les conversations du membre connecté, puis leurs messages.
- * Les règles RLS ne renvoient que celles auxquelles il participe.
- */
-async function chargerConversations() {
-  const { data, error } = await db
-    .from('conversations')
-    .select('id, merchant_id, agency_id, last_message_at')
-    .order('last_message_at', { ascending: false });
-
-  if (error) {
-    console.error('[Relais] Conversations indisponibles :', error.message);
-    return;
-  }
-
-  state.conversationIds = {};
-  state.conversations = {};
-
-  for (const conv of data || []) {
-    state.conversationIds[conv.agency_id] = conv.id;
-    state.conversations[conv.agency_id] = [];
-  }
-
-  // Une agence ne voit pas l'annuaire : sans cet ajout, l'interlocuteur de
-  // sa propre conversation serait introuvable dans state.agencies.
-  await completerAgencesDesConversations(Object.keys(state.conversationIds));
-
-  await Promise.all(Object.keys(state.conversationIds).map(chargerMessages));
-
-  // Ouvrir la conversation la plus recente : sans selection, l ecran de chat
-  // affiche son etat vide alors que des echanges existent deja.
-  const premiere = (data || [])[0];
-  if (premiere && !state.selectedAgencyId) {
-    state.selectedAgencyId = premiere.agency_id;
-  }
-}
 
 const STATUTS_BASE_VERS_ECRAN = {
   pending_pickup: 'pending',
@@ -909,217 +745,9 @@ async function completerAgencesDesConversations(agencyIds) {
   }
 }
 
-/**
- * Lit les messages via la vue messages_readable : le contenu brut n'y figure
- * pas, il reste réservé à l'instruction d'un litige.
- */
-async function chargerMessages(agencyId) {
-  const conversationId = state.conversationIds[agencyId];
-  if (!conversationId) return;
 
-  const { data, error } = await db
-    .from('messages_readable')
-    .select('id, sender_id, filtered_content, has_contact_leak_attempt, attachment_url, created_at')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
 
-  if (error) {
-    console.error('[Relais] Messages indisponibles :', error.message);
-    return;
-  }
 
-  state.conversations[agencyId] = (data || []).map(m => ({
-    id: m.id,
-    sender: m.sender_id === state.profile.id ? state.currentRole : 'autre',
-    time: formatOrderDate(new Date(m.created_at)),
-    dateBrute: new Date(m.created_at),
-    text: m.filtered_content,
-    hasViolation: m.has_contact_leak_attempt,
-    pieceJointe: m.attachment_url || null
-  }));
-}
-
-function renderActiveChat() {
-  const container = document.getElementById('messages-stream');
-
-  // Pas de repli sur la première agence de la liste : une agence connectée
-  // se serait vue elle-même comme interlocutrice.
-  const agency = state.selectedAgencyId
-    ? state.agencies.find(a => a.id === state.selectedAgencyId)
-    : null;
-
-  // Aucune agence disponible : on l'annonce au lieu de planter
-  if (!agency) {
-    const estAgence = state.currentRole === 'agency';
-
-    document.getElementById('chat-partner-name').textContent = 'Aucune conversation';
-    document.getElementById('chat-partner-flag').textContent = '💬';
-    document.getElementById('chat-partner-meta').textContent = estAgence
-      ? 'Les e-commerçants qui vous contactent apparaîtront ici.'
-      : "Ouvrez l'annuaire et contactez une agence certifiée pour démarrer.";
-
-    // Ces éléments décrivent un interlocuteur qui n'existe pas encore
-    document.querySelectorAll('.verified-badge-sm').forEach(b => { b.hidden = true; });
-    document.querySelectorAll('.chat-actions-group .btn').forEach(b => { b.disabled = true; });
-
-    if (container) {
-      container.innerHTML = estAgence
-        ? `<div style="text-align:center; padding:3rem; color: var(--text-dim);">
-             <p style="font-size:1.05rem; margin-bottom:.4rem;">Aucun e-commerçant ne vous a encore contacté.</p>
-             <p style="font-size:.85rem;">Votre agence apparaît dans l'annuaire des marchands une fois certifiée.</p>
-           </div>`
-        : `<div style="text-align:center; padding:3rem; color: var(--text-dim);">
-             <p style="font-size:1.05rem; margin-bottom:.4rem;">Vous n'avez encore aucune conversation.</p>
-             <p style="font-size:.85rem;">Rendez-vous dans l'annuaire et cliquez sur « Discuter &amp; Commander ».</p>
-           </div>`;
-    }
-    renderOrdersStrip();
-    return;
-  }
-
-  // Un interlocuteur existe : on réactive ce qui le décrit
-  document.querySelectorAll('.verified-badge-sm').forEach(b => { b.hidden = false; });
-  document.querySelectorAll('.chat-actions-group .btn').forEach(b => { b.disabled = false; });
-
-  // Header chat
-  document.getElementById('chat-partner-name').textContent = agency.name;
-  document.getElementById('chat-partner-flag').textContent = agency.flag;
-  document.getElementById('chat-partner-meta').textContent = `${agency.city}, ${agency.countryName} • Reversement ${agency.payoutText}`;
-
-  if (!container) return;
-
-  // Le fil mélange deux natures d'éléments : les messages, filtrés, et les
-  // bons de commande, qui ne passent pas par le filtre puisqu'ils voyagent
-  // par la table `orders`. C'est ce qui permet au téléphone du client
-  // d'arriver intact chez l'agence sans jamais transiter par la messagerie.
-  const conversationId = state.conversationIds[agency.id];
-
-  const elements = [
-    ...(state.conversations[agency.id] || []).map(m => ({
-      type: 'message',
-      date: m.dateBrute || new Date(0),
-      donnees: m
-    })),
-    ...state.orders
-      .filter(o => o.conversationId === conversationId)
-      .map(o => ({ type: 'commande', date: o.createdAt, donnees: o }))
-  ].sort((a, b) => a.date - b.date);
-
-  // Qui parle : on le calcule une fois pour pouvoir grouper.
-  const estDeMoi = (m) =>
-    (state.currentRole === 'merchant' && m.sender === 'merchant') ||
-    (state.currentRole === 'agency' && m.sender === 'agency');
-
-  container.innerHTML = elements.map((el, i) => {
-    const separateur = separateurDeJour(el.date, elements[i - 1]?.date);
-
-    if (el.type === 'commande') return separateur + carteCommande(el.donnees);
-
-    const m = el.donnees;
-    const moi = estDeMoi(m);
-
-    // Un message ouvre un groupe s'il change d'auteur, s'il suit un bon de
-    // commande, ou s'il commence une nouvelle journée. Il le ferme dans les
-    // mêmes cas, vus depuis le message suivant. Deux messages d'affilée du même
-    // auteur se collent : c'est ce qui distingue un fil lisible d'une colonne
-    // de blocs identiques.
-    const precedent = elements[i - 1];
-    const suivant   = elements[i + 1];
-    const debut = !!separateur || !precedent || precedent.type !== 'message'
-                  || estDeMoi(precedent.donnees) !== moi;
-    const fin   = !suivant || suivant.type !== 'message'
-                  || estDeMoi(suivant.donnees) !== moi
-                  || !!separateurDeJour(suivant.date, el.date);
-
-    // Une pièce jointe est chargée après coup : la vignette porte le chemin,
-    // et revelerPiecesJointes() ira chercher un lien signé de courte durée.
-    const piece = m.pieceJointe
-      ? `<div class="piece-jointe" data-piece="${echapperHtml(m.pieceJointe)}">
-           <span class="piece-attente">Chargement de la pièce jointe…</span>
-         </div>`
-      : '';
-
-    return separateur + `
-      <div class="message-bubble-wrap ${moi ? 'sent' : 'received'}${debut ? ' debut-groupe' : ''}${fin ? ' fin-groupe' : ''}">
-        <div class="bubble ${m.hasViolation ? 'violation' : ''}${m.pieceJointe ? ' avec-piece' : ''}">
-          ${piece}${m.text ? echapperHtml(m.text) : ''}
-        </div>
-        <span class="msg-time">${echapperHtml(m.time)}</span>
-      </div>
-    `;
-  }).join('');
-
-  container.scrollTop = container.scrollHeight;
-  renderOrdersStrip();
-  ajusterHauteurSaisie();   // le panneau est visible : la mesure est enfin juste
-  revelerPiecesJointes(container);
-}
-
-/**
- * Le dépôt des pièces jointes est privé : aucune adresse permanente n'existe.
- * On demande un lien signé, valable dix minutes, uniquement pour les fichiers
- * réellement affichés. Un participant qui n'appartient pas à la conversation
- * n'obtient rien — la règle vit dans le dépôt, pas ici.
- */
-async function revelerPiecesJointes(conteneur) {
-  const vignettes = [...conteneur.querySelectorAll('.piece-jointe[data-piece]')];
-  if (!vignettes.length) return;
-
-  const chemins = [...new Set(vignettes.map(v => v.dataset.piece))];
-  const { data, error } = await db.storage.from('pieces-chat').createSignedUrls(chemins, 600);
-
-  if (error) {
-    console.error('[Relais] Pièces jointes indisponibles :', error.message);
-    vignettes.forEach(v => { v.innerHTML = '<span class="piece-attente">Pièce jointe indisponible.</span>'; });
-    return;
-  }
-
-  const liens = {};
-  (data || []).forEach(d => { if (d.signedUrl) liens[d.path] = d.signedUrl; });
-
-  vignettes.forEach(v => {
-    const chemin = v.dataset.piece;
-    const url = liens[chemin];
-    if (!url) {
-      v.innerHTML = '<span class="piece-attente">Pièce jointe indisponible.</span>';
-      return;
-    }
-    const estPdf = /.pdf$/i.test(chemin);
-    v.innerHTML = estPdf
-      ? `<a class="piece-document" href="${echapperHtml(url)}" target="_blank" rel="noopener">
-           📄 Ouvrir le document
-         </a>`
-      : `<a href="${echapperHtml(url)}" target="_blank" rel="noopener">
-           <img src="${echapperHtml(url)}" alt="Pièce jointe" loading="lazy">
-         </a>`;
-  });
-}
-
-/**
- * « Aujourd'hui », « Hier », sinon la date en toutes lettres. Rendu seulement
- * quand on change de journée : un fil sans repère temporel oblige à lire les
- * heures une par une pour savoir de quand date un échange.
- */
-function separateurDeJour(date, datePrecedente) {
-  if (!(date instanceof Date) || isNaN(date)) return '';
-  const jour = (d) => d.toDateString();
-  if (datePrecedente instanceof Date && !isNaN(datePrecedente)
-      && jour(datePrecedente) === jour(date)) return '';
-
-  const aujourdhui = new Date();
-  const hier = new Date();
-  hier.setDate(hier.getDate() - 1);
-
-  let libelle;
-  if (jour(date) === jour(aujourdhui))  libelle = "Aujourd'hui";
-  else if (jour(date) === jour(hier))   libelle = 'Hier';
-  else libelle = date.toLocaleDateString('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long',
-    year: date.getFullYear() === aujourdhui.getFullYear() ? undefined : 'numeric'
-  });
-
-  return `<div class="separateur-jour">${echapperHtml(libelle)}</div>`;
-}
 
 // =============================================================================
 // MODULE DE COMMANDES & POINT FINANCIER COD
@@ -1142,7 +770,9 @@ function renderOrdersStrip() {
     bascule?.setAttribute('aria-expanded', String(!surTelephone));
   }
 
-  const agencyOrders = state.orders.filter(o => o.agencyId === state.selectedAgencyId);
+  // Filtrer par CONVERSATION, pas par agence : une agence qui parle à trois
+  // marchands voyait sinon les commandes des trois dans chaque fil.
+  const agencyOrders = state.orders.filter(o => o.conversationId === messagerie.actif);
 
   if (countEl) countEl.textContent = agencyOrders.length;
 
@@ -1241,7 +871,7 @@ function setupOrdersAndFinance() {
   orderForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const conversationId = state.conversationIds[state.selectedAgencyId];
+    const conversationId = messagerie.actif;
     if (!conversationId || !state.profile?.merchant?.id) {
       alert("Ouvrez d'abord une conversation avec une agence depuis l'annuaire.");
       return;
@@ -1258,7 +888,7 @@ function setupOrdersAndFinance() {
     const { error } = await db.from('orders').insert({
       conversation_id: conversationId,
       merchant_id: state.profile.merchant.id,
-      agency_id: state.selectedAgencyId,
+      agency_id: filActif()?.agence_id,
       product_name: document.getElementById('order-product-name').value.trim(),
       quantity: parseInt(document.getElementById('order-product-qty').value, 10) || 1,
       cod_amount: parseFloat(document.getElementById('order-cod-amount').value) || 0,
@@ -1284,7 +914,7 @@ function setupOrdersAndFinance() {
     orderForm.reset();
 
     await chargerCommandes();
-    renderActiveChat();
+    renderFil();
     renderOrdersStrip();
     renderFinanceView();
   });
@@ -1468,22 +1098,21 @@ let rafraichissementEnCours = false;
 async function rafraichirSurSignal(conversationId, toucheCommandes = false) {
   if (!conversationId || rafraichissementEnCours) return;
 
-  // Le signal ne dit pas si la conversation nous concerne : on ne relit que
-  // les nôtres, et les règles RLS écarteraient de toute façon les autres.
-  const agencyId = Object.keys(state.conversationIds)
-    .find(id => state.conversationIds[id] === conversationId);
-  if (!agencyId) return;
-
+  // Le signal ne dit pas si la conversation nous concerne : les règles de
+  // lecture écarteraient de toute façon celles des autres.
   rafraichissementEnCours = true;
   try {
-    await chargerMessages(agencyId);
     if (toucheCommandes) await chargerCommandes();
 
-    if (agencyId === state.selectedAgencyId) {
-      renderActiveChat();
+    if (conversationId === messagerie.actif) {
+      await chargerMessagesDuFil(conversationId);
+      renderFil();
       renderOrdersStrip();
+      // On est dans la conversation : ce qui arrive est lu tout de suite.
+      await marquerLu(conversationId);
     }
-    renderConversationsSidebar();
+    await chargerFils();
+    renderListeFils();
     if (toucheCommandes) renderFinanceView();
   } finally {
     rafraichissementEnCours = false;
@@ -1506,7 +1135,7 @@ async function chargerPointsFinanciers() {
 
 /** Le point financier en cours pour la conversation ouverte, s'il y en a un. */
 function pointEnCours() {
-  const conversationId = state.conversationIds[state.selectedAgencyId];
+  const conversationId = messagerie.actif;
   return state.payouts.find(p =>
     p.conversation_id === conversationId && p.status !== 'confirmed');
 }
@@ -1520,7 +1149,7 @@ async function actionAgenceReversement() {
   const point = pointEnCours();
 
   if (!point) {
-    const conversationId = state.conversationIds[state.selectedAgencyId];
+    const conversationId = messagerie.actif;
     if (!conversationId) return alert('Sélectionnez une conversation.');
 
     const bornes = periodRange(state.currentPeriod) || {
@@ -1766,7 +1395,7 @@ async function updateOrderStatus(orderCode, nouveauStatutEcran) {
   await chargerCommandes();
   renderOrdersStrip();
   renderFinanceView();
-  renderActiveChat();
+  renderFil();
 }
 
 // =============================================================================
@@ -2371,7 +2000,7 @@ function switchTab(tabName) {
   document.body.classList.toggle('vue-chat', tabName === 'chat');
 
   if (tabName === 'finance') renderFinanceView();
-  if (tabName === 'chat') renderActiveChat();
+  if (tabName === 'chat') renderFil();
   if (tabName === 'agence') renderEspaceAgence();
   if (tabName === 'compte') renderMonCompte();
   if (tabName === 'tableau') rafraichirTableauDeBord();

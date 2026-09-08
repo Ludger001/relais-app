@@ -27,6 +27,7 @@ const path = require('path');
 const RACINE = path.join(__dirname, '..', 'public');
 const appJs = fs.readFileSync(path.join(RACINE, 'app.js'), 'utf8');
 const tbJs = fs.readFileSync(path.join(RACINE, 'lib', 'tableauDeBord.js'), 'utf8');
+const msgJs = fs.readFileSync(path.join(RACINE, 'lib', 'messagerie.js'), 'utf8');
 
 let ko = 0;
 const verifier = (ok, libelle, detail) => {
@@ -110,10 +111,20 @@ const CHAMPS = {
     ['v.tentative', 'texte intercepté, tableau de bord'],
     ['v.user', 'adresse du membre, tableau de bord'],
     ['v.pattern', 'motif de détection, tableau de bord']
+  ],
+  // La messagerie affiche tout ce que l'autre partie écrit : c'est le fichier
+  // le plus exposé du projet.
+  'lib/messagerie.js': [
+    ['m.texte', 'corps du message'],
+    ['m.piece', 'chemin de la pièce jointe'],
+    ['m.motif', "motif d'un envoi refusé"],
+    ['f.interlocuteur', "nom de l'interlocuteur"],
+    ['f.dernier_message', 'aperçu du dernier message'],
+    ['fil.interlocuteur', "nom de l'interlocuteur, en-tête"]
   ]
 };
 
-const SOURCES = { 'app.js': appJs, 'lib/tableauDeBord.js': tbJs };
+const SOURCES = { 'app.js': appJs, 'lib/tableauDeBord.js': tbJs, 'lib/messagerie.js': msgJs };
 
 /**
  * Le même champ peut apparaître dans un gabarit HTML — dangereux — ou dans un

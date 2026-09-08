@@ -2089,9 +2089,11 @@ img, svg, video {
 .message-bubble-wrap.debut-groupe { margin-top: .85rem; }
 .messages-stream-container > .message-bubble-wrap:first-child { margin-top: 0; }
 
-/* L'heure n'a pas a se repeter sous chaque bulle : seulement sous la derniere
-   du groupe. Repetee, elle hache le fil pour ne rien apprendre. */
-.message-bubble-wrap:not(.fin-groupe) .msg-time { display: none; }
+/* L'heure et l'accuse ne se repetent pas sous chaque bulle : seulement sous la
+   derniere du groupe. Repetes, ils hachent le fil pour ne rien apprendre — et
+   un ✓ sous chacun des cinq messages d'une meme salve n'ajoute rien au ✓ du
+   dernier. */
+.message-bubble-wrap:not(.fin-groupe) .msg-pied { display: none; }
 
 /* La petite pointe ne se dessine qu'au dernier message du groupe */
 .message-bubble-wrap.sent .bubble        { border-bottom-right-radius: var(--radius-md); }
@@ -2708,3 +2710,158 @@ body.vue-chat .chat-workspace-layout {
 
   .messages-stream-container { padding: .6rem .7rem .5rem; }
 }
+
+/* =============================================================================
+   LA MESSAGERIE — CE QUI LA REND VIVANTE
+   =============================================================================
+   Ajoute le 2026-09-07. La version precedente affichait une liste de messages :
+   pas d'accuse de lecture, pas de presence, pas de compteur de non-lus, un
+   apercu qui disait « Nouvelle conversation » sur un fil de dix messages, et
+   une heure « 10:18 » ecrite en dur.
+   ============================================================================= */
+
+/* --- La recherche, en tete de liste --------------------------------------- */
+.sidebar-recherche { padding: .6rem .8rem; border-bottom: 1px solid var(--border-color); }
+.sidebar-recherche input {
+  width: 100%;
+  padding: .55rem .8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-input);
+  font-family: var(--font-main);
+  font-size: .85rem;
+  color: var(--text-main);
+  outline: none;
+}
+.sidebar-recherche input:focus { border-color: var(--primary); background: #fff; }
+
+/* --- Une conversation dans la liste --------------------------------------- */
+.conv-item {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  background: transparent;
+  font-family: var(--font-main);
+  text-align: left;
+  align-items: center;
+}
+.conv-item.non-lu .conv-name     { font-weight: 800; }
+.conv-item.non-lu .conv-last-msg { color: var(--text-main); font-weight: 600; }
+
+/* L'avatar porte des initiales sur une teinte tiree du nom : deux
+   interlocuteurs ne se ressemblent pas, et chacun garde la sienne. */
+.conv-avatar {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: none;
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: .85rem;
+  letter-spacing: .02em;
+  flex-shrink: 0;
+}
+
+.conv-info { display: flex; flex-direction: column; gap: 2px; }
+.conv-name-row { width: 100%; }
+.conv-bas { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.conv-bas .conv-last-msg { flex: 1; min-width: 0; }
+
+/* Le nombre de messages non lus, la ou l'oeil le cherche */
+.conv-pastille {
+  flex-shrink: 0;
+  min-width: 20px; height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- L'etat de l'interlocuteur, sous son nom ------------------------------ */
+.partner-etat { min-height: 1.1em; }
+.partner-etat.ecrit { color: var(--secondary); font-style: italic; }
+.partner-etat.ecrit .point { background: var(--secondary); animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+/* --- Le pied d'une bulle : heure et accuse -------------------------------- */
+.msg-pied {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+}
+.accuse { font-size: .72rem; line-height: 1; color: var(--text-dim); letter-spacing: -1px; }
+.accuse.lu { color: var(--secondary); font-weight: 700; }
+.accuse.echec { color: var(--danger); letter-spacing: 0; }
+.accuse.en-cours { font-size: .68rem; opacity: .7; }
+
+/* Un message parti mais pas encore confirme s'affiche en retrait : on voit
+   qu'il est la sans croire qu'il est arrive. */
+.message-bubble-wrap:has(.accuse.en-cours) .bubble { opacity: .62; }
+.message-bubble-wrap.echoue .bubble { border: 1px dashed var(--danger); }
+
+.msg-reessayer {
+  margin-top: 4px;
+  padding: .3rem .6rem;
+  border: 1px solid rgba(220, 38, 38, .3);
+  border-radius: var(--radius-sm);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-family: var(--font-main);
+  font-size: .74rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* --- Descendre au dernier message ----------------------------------------- */
+/* Remonter dans l'historique ne doit pas etre annule par l'arrivee d'un
+   message ; ce bouton dit qu'on n'est plus en bas, et y ramene. */
+.zone-fil { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.btn-descendre {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: var(--text-muted);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 3;
+}
+.btn-descendre:hover { color: var(--primary); border-color: var(--primary); }
+
+/* --- Les etats vides, ecrits pour dire quoi faire -------------------------- */
+.fil-vide {
+  padding: 1.75rem 1.25rem;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: .85rem;
+  line-height: 1.6;
+}
+.fil-vide.grand { margin: auto; max-width: 34ch; padding: 2.5rem 1.25rem; }
+.fil-vide-icone { font-size: 2rem; margin-bottom: .6rem; opacity: .8; }
+.fil-vide strong { display: block; color: var(--text-main); font-size: .98rem; margin-bottom: .35rem; }
+.fil-vide p { margin: 0; }
+
+/* Le fil vide se centre : sans cela, le message d'accueil restait colle en
+   haut d'une grande zone grise. */
+.messages-stream-container:has(.fil-vide) { justify-content: center; }
+
+/* Un fil court doit partir du BAS, comme dans toute messagerie : coller les
+   premiers messages en haut d'une grande zone vide donne l'impression que la
+   conversation est finie. « margin-top: auto » sur le premier enfant pousse
+   l'ensemble vers le bas sans empecher le defilement quand le fil s'allonge. */
+.messages-stream-container > *:first-child { margin-top: auto; }

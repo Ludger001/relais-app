@@ -222,7 +222,8 @@ relais-app/
 │   │   ├── supabaseClient.js    connexion, session, profil, traduction des erreurs
 │   │   ├── inscription.js       logique partagée des deux formulaires
 │   │   ├── antiBypassFilter.js  filtre — côté navigateur, AVERTISSEMENT SEUL
-│   │   └── tableauDeBord.js     les trois vues : marchand, agence, admin
+│   │   ├── tableauDeBord.js     les trois vues : marchand, agence, admin
+│   │   └── messagerie.js        le chat : présence, frappe, accusés, non-lus
 │   └── assets/                  images
 │
 ├── supabase/functions/

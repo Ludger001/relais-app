@@ -209,8 +209,12 @@
         <!-- SIDEBAR GAUCHE : CONVERSATIONS ACTIVES -->
         <aside class="chat-conversations-sidebar">
           <div class="sidebar-top-bar">
-            <h3 class="sidebar-heading">Conversations Actives</h3>
+            <h3 class="sidebar-heading">Conversations</h3>
             <span class="active-count-tag" id="active-chats-count">—</span>
+          </div>
+          <div class="sidebar-recherche">
+            <input type="search" id="recherche-conversations" placeholder="Rechercher…"
+                   autocomplete="off" aria-label="Rechercher une conversation">
           </div>
           <div class="conversations-list" id="conversations-list-container">
             <!-- Rendu dynamique -->
@@ -232,7 +236,7 @@
                   <h3 class="partner-name" id="chat-partner-name">Ivoire Express COD</h3>
                   <span class="verified-badge-sm">✔ Vérifiée Relais</span>
                 </div>
-                <div class="partner-meta" id="chat-partner-meta">Abidjan, Côte d'Ivoire • Reversement J+1</div>
+                <div class="partner-etat" id="chat-partner-etat"></div>
               </div>
             </div>
 
@@ -263,8 +267,14 @@
           </div>
 
           <!-- FLUX DES MESSAGES DU CHAT -->
-          <div class="messages-stream-container" id="messages-stream">
-            <!-- Messages injectés en temps réel -->
+          <div class="zone-fil">
+            <div class="messages-stream-container" id="messages-stream">
+              <!-- Messages injectés en temps réel -->
+            </div>
+            <button type="button" class="btn-descendre" id="btn-descendre" hidden
+                    aria-label="Aller au dernier message" title="Aller au dernier message">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+            </button>
           </div>
 
           <!-- ZONE D'AVERTISSEMENT DE SÉCURITÉ DYNAMIQUE -->
@@ -584,6 +594,7 @@
   <script src="lib/supabaseClient.js"></script>
   <script src="lib/antiBypassFilter.js"></script>
   <script src="lib/tableauDeBord.js"></script>
+  <script src="lib/messagerie.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

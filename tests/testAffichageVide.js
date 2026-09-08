@@ -1,5 +1,11 @@
 const fs = require('fs');
-const src = fs.readFileSync(require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
+const chemin = (f) => require('path').join(__dirname, '..', 'public', f);
+// La messagerie vit dans son propre fichier, chargé par app.html avant app.js.
+// Le test doit faire pareil, sinon renderFil() et ses voisines n'existent pas.
+const src = [
+  fs.readFileSync(chemin('app.js'), 'utf8'),
+  fs.readFileSync(chemin('lib/messagerie.js'), 'utf8')
+].join('\n');
 
 // Faux element DOM : accepte tout ce que le code lui demande
 function faireElement(id) {
@@ -40,14 +46,30 @@ const requete = {
   order(){ return Promise.resolve({ data: [], error: null }); },
   maybeSingle(){ return Promise.resolve({ data: null, error: null }); }
 };
-global.db = { from(){ return requete; }, auth: { getSession: async () => ({ data:{session:null}, error:null }) } };
+global.db = {
+  from(){ return requete; },
+  rpc(){ return Promise.resolve({ data: [], error: null }); },
+  channel(){ return canalFactice; },
+  removeChannel(){},
+  storage: { from(){ return { createSignedUrls: async () => ({ data: [], error: null }) }; } },
+  auth: { getSession: async () => ({ data:{session:null}, error:null }) }
+};
+
+// Realtime hors navigateur : un canal qui accepte tout et ne fait rien.
+const canalFactice = {
+  on(){ return this; },
+  subscribe(){ return this; },
+  send(){ return this; },
+  track: async () => {},
+  presenceState(){ return {}; }
+};
 global.inspectAndSanitizeMessage = (t) => ({ isBlocked:false, cleanText:t, violations:[] });
 global.exigerConnexion = async () => null;
 global.seDeconnecter = () => {};
 
 const app = new Function(src + `
-  return { state, chargerAgences, renderAgencies, renderConversationsSidebar,
-           renderActiveChat, renderOrdersStrip, renderFinanceView,
+  return { state, messagerie, chargerAgences, renderAgencies, renderListeFils,
+           renderFil, chargerFils, renderOrdersStrip, renderFinanceView,
            setupAdminPanel, setupChat, setupModals, setupTabNavigation,
            setupCountryFilters, setupOrdersAndFinance, appliquerProfil };
 `)();
@@ -63,8 +85,9 @@ async function essai(nom, fn) {
   await essai('appliquerProfil', () => app.appliquerProfil({ full_name:'Aya', role:'merchant', email:'a@b.c', merchant:{store_name:'Boutique'} }));
   await essai('chargerAgences', () => app.chargerAgences());
   await essai('renderAgencies', () => app.renderAgencies());
-  await essai('renderConversationsSidebar', () => app.renderConversationsSidebar());
-  await essai('renderActiveChat', () => app.renderActiveChat());
+  await essai('chargerFils', () => app.chargerFils());
+  await essai('renderListeFils', () => app.renderListeFils());
+  await essai('renderFil', () => app.renderFil());
   await essai('renderOrdersStrip', () => app.renderOrdersStrip());
   await essai('renderFinanceView', () => app.renderFinanceView());
   await essai('setupChat', () => app.setupChat());
