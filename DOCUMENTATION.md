@@ -236,6 +236,7 @@ relais-app/
 │   ├── 02_securite.sql          fonctions d'identité, RLS, retrait des privilèges
 │   ├── 03_comptes_et_commandes.sql  création de profil, références, gel des conditions
 │   ├── 04_tableaux_de_bord.sql  les trois fonctions de statistiques
+│   ├── 06_paiement_abonnements.sql le prix vient de la base, jamais du client
 │   └── README.md                notes de sécurité de la base
 │
 ├── scripts/
@@ -505,6 +506,7 @@ npm run test:tactile     # cibles ≥ 44 px, 88 écrans × 4 formats de téléph
 npm run test:mobile      # saisie visible clavier ouvert + installation (PWA)
 npm run icones           # régénère les icônes d'application
 npm run test:pieces      # étanchéité des pièces jointes du chat
+npm run test:paiement    # on ne s'abonne pas sans payer
 npm run test:chat        # le filtre serveur est-il contournable ?
 npm run test:commande    # cycle complet d'une commande
 npm run test:kyc         # parcours de certification

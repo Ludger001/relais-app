@@ -96,7 +96,8 @@ sur des données qui n'existent pas encore.
 - [x] **Bloc 5** — Données réelles : annuaire, chat, commandes et bilan financier
 - [x] **Bloc 6** — Tableau de bord agence + validation KYC
 - [x] **Bloc 7** — Filtre anti-désintermédiation côté serveur (remonté avant le Bloc 5)
-- [~] **Bloc 8** — Reversement du cash fait ; paiement en ligne à brancher
+- [x] **Bloc 8** — Reversement du cash fait ; paiement des abonnements branché
+       sur Moneroo (bac à sable) — reste à poser les clés
 - [~] **Bloc 9** — Pages légales, en-têtes de sécurité, tests automatiques faits ;
        domaine et service d'e-mails à faire
 - [x] **Bloc 10** — Tableaux de bord marchand, agence et administrateur
@@ -107,6 +108,25 @@ sur des données qui n'existent pas encore.
        pièces jointes, et toute l'application manipulable au pouce
 - [x] **Bloc 13** — Base d'application installable : `svh`, zones sûres,
        manifeste, service worker, icônes — prête à emballer pour les magasins
+
+### 🔑 Les trois secrets du paiement
+
+Le parcours d'abonnement est construit et déployé. Il attend **trois secrets**,
+à poser dans Supabase → Edge Functions → Secrets — jamais dans `public/` :
+
+| Secret | Où le trouver |
+|---|---|
+| `MONEROO_SECRET_KEY` | moneroo.io → tableau de bord → développeurs (clé de bac à sable pour commencer) |
+| `MONEROO_WEBHOOK_SECRET` | le secret de signature, dans la configuration du webhook |
+| `RELAIS_SITE_URL` | `https://relais-app-wwk4.vercel.app` |
+
+Et une adresse à déclarer chez Moneroo comme webhook :
+`https://uqusictqdviahnxpzylu.supabase.co/functions/v1/moneroo-webhook`
+
+⚠️ **Deux questions à poser à Moneroo** avant la mise en service : la
+commission de la passerelle sous-jacente (leur tarif de 0,01 $ est le leur, pas
+celui du prestataire en dessous), et la couverture du **Gabon**, absent de leur
+liste de méthodes mobile money alors que l'annuaire annonce cinq pays.
 
 ### 🔴 Engagement à ne pas oublier : le service d'e-mails
 

@@ -225,6 +225,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupCountryFilters();
   setupChat();
   suivreClavierVirtuel();
+  verifierRetourPaiement();
   setupOrdersAndFinance();
   setupAdminPanel();
   setupDepotKYC();
@@ -1632,12 +1633,134 @@ function renderMonCompte() {
 
   const a = state.abonnement;
   abo.innerHTML = !a
-    ? ligne('État', 'Aucun abonnement actif') +
-      ligne('Note', "Aucun prélèvement n'a lieu pour l'instant. Le paiement en ligne arrive prochainement.")
+    ? ligne('État', 'Aucun abonnement actif')
     : ligne('État', a.actif ? '🟢 Actif' : '🔴 Expiré') +
       ligne('Formule', a.plan) +
       ligne('Échéance', new Date(a.expire_le).toLocaleDateString('fr-FR')) +
       ligne('Jours restants', a.jours_restants);
+
+  renderForfait(a);
+}
+
+/**
+ * Le forfait et son bouton de souscription.
+ *
+ * Le prix affiché vient de `plans_abonnement`, jamais du HTML : c'est le même
+ * chiffre que celui dont la base se servira pour valider le paiement. Un prix
+ * écrit en dur dans la page finirait par diverger de celui qui fait foi.
+ */
+async function renderForfait(abonnement) {
+  const zone = document.getElementById('zone-abonnement');
+  if (!zone) return;
+
+  // L'administrateur ne s'abonne à rien.
+  if (state.currentRole === 'admin') { zone.hidden = true; return; }
+
+  const { data: plans, error } = await db
+    .from('plans_abonnement')
+    .select('code, libelle, prix_mensuel, prix_barre, devise')
+    .eq('role_cible', state.currentRole)
+    .eq('actif', true)
+    .limit(1);
+
+  if (error || !plans?.length) { zone.hidden = true; return; }
+
+  const plan = plans[0];
+  const actif = abonnement?.actif;
+  const prix = Number(plan.prix_mensuel).toLocaleString('fr-FR');
+  const barre = plan.prix_barre ? Number(plan.prix_barre).toLocaleString('fr-FR') : null;
+
+  zone.hidden = false;
+  zone.innerHTML = `
+    <div class="forfait">
+      <div class="forfait-tete">
+        <div>
+          <div class="forfait-nom">${echapperHtml(plan.libelle)}</div>
+          <div class="forfait-prix">
+            ${barre ? `<s>${echapperHtml(barre)}</s>` : ''}
+            <strong>${echapperHtml(prix)} ${echapperHtml(plan.devise)}</strong>
+            <span>/ 30 jours</span>
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-souscrire">
+          ${actif ? 'Prolonger de 30 jours' : "S'abonner"}
+        </button>
+      </div>
+      <p class="forfait-note">
+        ${actif
+          ? "Un renouvellement anticipé s'ajoute à vos jours restants : vous ne perdez rien."
+          : 'Paiement par mobile money — Wave, MTN, Moov, Orange selon votre pays.'}
+      </p>
+      <p class="forfait-etat" id="forfait-etat" hidden></p>
+    </div>`;
+
+  document.getElementById('btn-souscrire')?.addEventListener('click', () => souscrire(plan.code));
+}
+
+/**
+ * Ouvre le paiement chez le prestataire.
+ *
+ * Le navigateur ne parle jamais à Moneroo : il demande à la fonction serveur,
+ * qui décide du prix et renvoie une adresse. Rien n'est activé ici — c'est le
+ * webhook qui active l'abonnement, une fois le paiement réellement confirmé.
+ */
+async function souscrire(planCode) {
+  const bouton = document.getElementById('btn-souscrire');
+  const etat = document.getElementById('forfait-etat');
+  const dire = (texte, erreur = false) => {
+    if (!etat) return;
+    etat.hidden = false;
+    etat.textContent = texte;
+    etat.classList.toggle('erreur', erreur);
+  };
+
+  if (bouton) { bouton.disabled = true; bouton.textContent = 'Ouverture du paiement…'; }
+  dire('Nous préparons votre paiement…');
+
+  try {
+    const { data, error } = await db.functions.invoke('payer-abonnement', {
+      body: { plan_code: planCode }
+    });
+
+    if (error) { dire(await messageDErreurServeur(error), true); return; }
+    if (!data?.url_paiement) { dire("Le paiement n'a pas pu être ouvert.", true); return; }
+
+    dire('Redirection vers le paiement…');
+    window.location.href = data.url_paiement;
+
+  } finally {
+    if (bouton) { bouton.disabled = false; bouton.textContent = "S'abonner"; }
+  }
+}
+
+/**
+ * Au retour du paiement, le prestataire nous renvoie avec la référence dans
+ * l'adresse. On ne croit PAS cette adresse — n'importe qui peut la recopier :
+ * on relit l'abonnement en base, qui n'est actif que si le webhook l'a activé.
+ */
+async function verifierRetourPaiement() {
+  const reference = new URLSearchParams(location.search).get('paiement');
+  if (!reference) return;
+
+  history.replaceState({}, '', location.pathname);
+  switchTab('compte');
+
+  // Le webhook peut arriver une seconde après le retour du client : on relit
+  // quelques fois avant de conclure, plutôt que d'annoncer un échec trop tôt.
+  for (let essai = 0; essai < 5; essai++) {
+    await chargerAbonnement();
+    if (state.abonnement?.actif) {
+      renderMonCompte();
+      alert('Paiement confirmé. Votre abonnement est actif.');
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+
+  renderMonCompte();
+  alert("Nous n'avons pas encore reçu la confirmation de votre paiement. "
+      + "Si vous avez bien payé, elle arrivera d'ici quelques minutes — "
+      + "rechargez cette page pour vérifier.");
 }
 
 /**

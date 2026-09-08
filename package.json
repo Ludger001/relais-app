@@ -17,7 +17,8 @@
     "test:pieces": "node tests/testPiecesJointes.js",
     "test:tactile": "node tests/testTactile.js",
     "test:mobile": "node tests/testCoquilleMobile.js",
-    "icones": "node scripts/genererIcones.js"
+    "icones": "node scripts/genererIcones.js",
+    "test:paiement": "node tests/testPaiement.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

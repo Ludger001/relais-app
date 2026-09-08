@@ -2865,3 +2865,72 @@ body.vue-chat .chat-workspace-layout {
    conversation est finie. « margin-top: auto » sur le premier enfant pousse
    l'ensemble vers le bas sans empecher le defilement quand le fil s'allonge. */
 .messages-stream-container > *:first-child { margin-top: auto; }
+
+/* =============================================================================
+   L'ABONNEMENT, DANS « MON COMPTE »
+   =============================================================================
+   Le prix affiche vient de plans_abonnement, jamais du HTML : c'est le meme
+   chiffre que celui dont la base se sert pour valider le paiement.
+   ============================================================================= */
+.zone-abonnement { padding: 0 1.1rem 1.2rem; }
+
+.forfait {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.2rem;
+  background: var(--bg-input);
+}
+
+.forfait-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.forfait-nom {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.02rem;
+  color: var(--text-main);
+}
+
+.forfait-prix {
+  display: flex;
+  align-items: baseline;
+  gap: .45rem;
+  margin-top: .25rem;
+  font-variant-numeric: tabular-nums;
+}
+.forfait-prix s { color: var(--text-dim); font-size: .88rem; }
+.forfait-prix strong {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--primary);
+  letter-spacing: -.02em;
+}
+.forfait-prix span { color: var(--text-muted); font-size: .82rem; }
+
+.forfait-note {
+  margin: .85rem 0 0;
+  font-size: .84rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.forfait-etat {
+  margin: .7rem 0 0;
+  padding: .55rem .75rem;
+  border-radius: var(--radius-sm);
+  background: var(--primary-light);
+  color: #065f46;
+  font-size: .84rem;
+  font-weight: 600;
+}
+.forfait-etat.erreur { background: var(--danger-bg); color: var(--danger); }
+
+@media (max-width: 640px) {
+  .forfait-tete { flex-direction: column; align-items: stretch; }
+  .forfait-tete .btn { width: 100%; justify-content: center; }
+}
