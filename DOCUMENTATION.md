@@ -575,6 +575,41 @@ connexion échoue avec `Database error querying schema`.
 
 ### Évolutions produit envisagées
 
+> **Le périmètre du MVP est volontairement tenu aux e-commerçants** (décidé le
+> 2026-09-07). Tout ce qui suit a été pensé, arbitré, puis mis de côté pour ne
+> pas s'éparpiller. Rien n'est abandonné : les décisions sont prises, il ne
+> reste qu'à construire le jour venu.
+
+**Ouvrir la vitrine au public.** Aujourd'hui il faut un compte pour voir qu'une
+agence existe : un mur avant la preuve. La fiche deviendrait visible d'un
+visiteur — ville, note, fréquence de reversement, flotte, disponibilité — mais
+**sans le nom ni le logo**, révélés seulement au moment de l'engagement.
+
+Cette anonymat n'est pas une coquetterie : sans elle le péage saute. Il suffit
+de lire « Ivoire Express COD » sur la vitrine, de chercher ce nom sur Facebook,
+et d'appeler directement. Uber ne montre jamais le chauffeur avant la course,
+pour exactement cette raison.
+
+**La disponibilité de l'agence.** Un interrupteur tenu par l'agence depuis son
+tableau de bord — « j'accepte des courses » / « je suis complète » — estompé
+automatiquement après 24 h sans mise à jour, faute de quoi la vitrine mentirait.
+
+**Trois types de comptes.** Particulier (gratuit, local, paie sa course d'avance,
+pas de discussion) · Marchand (abonnement, international, discussion, COD) ·
+Agence. Cela demande un quatrième rôle : `user_role` n'en connaît que trois.
+
+⚠️ **La frontière à ne pas franchir si cela revient :** le compte particulier ne
+fait **jamais** de COD. Il paie le transport parce qu'il ne vend rien ; encaisser
+chez le client final et rapprocher au centime est précisément ce que
+l'abonnement achète. Sans cette ligne, un marchand ouvre un compte gratuit,
+expédie colis par colis, et la ligne payante meurt de sa propre gratuité.
+
+⚠️ **Et l'avertissement qui va avec :** faire payer la course *à travers* Relais
+contredit le principe fondateur — Relais ne touche pas à l'argent des
+livraisons. Il faudrait un paiement scindé, où le prestataire verse directement
+à l'agence sans que Relais détienne jamais les fonds d'autrui. Ni FedaPay ni
+Kkiapay ne le documentent publiquement : c'est la première question à leur poser.
+
 **Un espace pour les closeurs.** Dans l'écosystème COD africain, le *closeur*
 est celui qui appelle les prospects et transforme les intentions en commandes
 confirmées. C'est un troisième métier, distinct de l'agence de livraison, et les
