@@ -30,6 +30,15 @@ documentation officielle et citer la source. Ne jamais énoncer de mémoire un
 fait vérifiable. Cette consigne est venue d'une réponse obsolète qui lui a fait
 perdre du temps.
 
+## Le skill de paiement
+
+`.claude/skills/paiements-mobile-money/` contient une référence détaillée pour
+Moneroo, Bictorys, PayTech et Stripe — apportée par l'utilisateur, et bien plus
+précise que les documentations publiques. **La consulter avant de toucher au
+paiement.** Elle a déjà révélé trois défauts que l'intégration ne montrait pas :
+la devise renvoyée tantôt en chaîne tantôt en objet, l'écart FCFA / XOF, et le
+statut « succeeded » à côté de « success ».
+
 ## Ce qu'il ne faut jamais casser
 
 **Le filtre anti-désintermédiation est le modèle économique.** Si marchand et

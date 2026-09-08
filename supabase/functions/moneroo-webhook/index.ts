@@ -103,6 +103,12 @@ Deno.serve(async (requete) => {
   const referenceInterne = donnees?.metadata?.reference_interne;
   const idMoneroo = donnees?.id;
 
+  // « payment.initiated » est informatif : la ligne est déjà « en_attente »
+  // depuis l'ouverture. Agir dessus reviendrait à réécrire ce qu'on sait déjà.
+  if (evenement?.event === 'payment.initiated') {
+    return reponse({ recu: true, ignore: 'payment.initiated' }, 200);
+  }
+
   if (!referenceInterne || !idMoneroo) {
     console.warn('[Relais] Webhook sans référence exploitable.');
     // 200 volontairement : le corps est signé, donc légitime, mais ne nous
@@ -115,7 +121,10 @@ Deno.serve(async (requete) => {
   let verification: any = null;
   try {
     const r = await fetch(`https://api.moneroo.io/v1/payments/${encodeURIComponent(idMoneroo)}/verify`, {
-      headers: { Authorization: `Bearer ${cleMoneroo}`, Accept: 'application/json' }
+      headers: { Authorization: `Bearer ${cleMoneroo}`, Accept: 'application/json' },
+      // Moneroo ralentit aux heures de pointe ; sans limite on bloquerait
+      // jusqu'au delai d'expiration de la fonction elle-meme.
+      signal: AbortSignal.timeout(15000)
     });
     verification = await r.json().catch(() => null);
     if (!r.ok) {
@@ -129,7 +138,20 @@ Deno.serve(async (requete) => {
     return reponse({ erreur: 'Vérification impossible.' }, 500);
   }
 
-  const etat = verification?.data?.status;
+  // Moneroo renvoie la devise TANTÔT en chaîne (« XOF »), TANTÔT en objet
+  // ({ code: 'XOF' }). Sans cette normalisation, String() produisait
+  // « [object Object] », la vérification du montant échouait, et l'abonnement
+  // n'était jamais activé alors que le client avait payé.
+  const deviseBrute = verification?.data?.currency;
+  const devise = typeof deviseBrute === 'string'
+    ? deviseBrute
+    : (deviseBrute?.code ?? 'XOF');
+
+  // Le statut est du texte libre selon la passerelle sous-jacente : « success »
+  // chez l'une, « succeeded » chez l'autre. Les deux veulent dire payé.
+  const etatBrut = String(verification?.data?.status ?? '').toLowerCase();
+  const etat = (etatBrut === 'success' || etatBrut === 'succeeded') ? 'success' : etatBrut;
+
   const admin = createClient(urlSupabase, cleService);
 
   if (etat !== 'success') {
@@ -150,7 +172,7 @@ Deno.serve(async (requete) => {
     p_reference_interne: referenceInterne,
     p_reference_externe: String(idMoneroo),
     p_montant: Number(verification?.data?.amount),
-    p_devise: String(verification?.data?.currency ?? 'XOF'),
+    p_devise: devise,
     p_brut: verification
   });
 

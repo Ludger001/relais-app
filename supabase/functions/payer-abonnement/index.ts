@@ -113,15 +113,21 @@ Deno.serve(async (requete) => {
       body: JSON.stringify({
         amount: Number(paiement.montant),
         currency: 'XOF',              // le FCFA de l'UEMOA, code ISO 4217
-        description: `Relais — ${paiement.libelle} (30 jours)`,
+        // 200 caractères maximum, sinon Moneroo renvoie une 422.
+        description: `Relais — ${paiement.libelle} (30 jours)`.slice(0, 200),
         customer: {
-          email: profil?.email ?? auth.user.email,
+          email: courriel,
           first_name: prenom,
           last_name: nom
         },
         return_url: `${siteUrl}/app.html?paiement=${encodeURIComponent(paiement.reference_interne)}`,
-        metadata: { reference_interne: paiement.reference_interne }
-      })
+        // Les valeurs de metadata doivent être des CHAÎNES : Moneroo renvoie
+        // une 422 sur tout autre type.
+        metadata: { reference_interne: String(paiement.reference_interne) }
+      }),
+      // Moneroo ralentit aux heures de pointe. Sans limite, la fonction
+      // resterait bloquée jusqu'à son propre délai d'expiration.
+      signal: AbortSignal.timeout(15000)
     });
   } catch (e) {
     console.error('[Relais] Moneroo injoignable :', (e as Error).message);
@@ -130,12 +136,13 @@ Deno.serve(async (requete) => {
 
   const corpsMoneroo = await reponseMoneroo.json().catch(() => null);
 
-  if (!reponseMoneroo.ok || !corpsMoneroo?.data?.checkout_url) {
+  // Les DEUX doivent etre presents : un 200 sans checkout_url reste un echec.
+  if (!reponseMoneroo.ok || !corpsMoneroo?.data?.id || !corpsMoneroo?.data?.checkout_url) {
     console.error('[Relais] Moneroo a refusé :', reponseMoneroo.status, JSON.stringify(corpsMoneroo));
     await admin.from('paiements')
       .update({
         statut: 'echoue',
-        motif_echec: `Moneroo ${reponseMoneroo.status}`,
+        motif_echec: corpsMoneroo?.message ?? `Moneroo ${reponseMoneroo.status}`,
         provider_raw: corpsMoneroo,
         updated_at: new Date().toISOString()
       })

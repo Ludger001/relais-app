@@ -177,3 +177,40 @@ REVOKE ALL ON FUNCTION public.confirmer_paiement_abonnement(TEXT, TEXT, NUMERIC,
 -- Aucune de ces valeurs ne doit apparaitre dans public/ : la cle secrete permet
 -- d'emettre des paiements au nom de Relais.
 -- =============================================================================
+
+
+-- =============================================================================
+-- FCFA ET XOF SONT LA MEME MONNAIE
+--
+-- Applique le 2026-09-08 : relais_paiement_devise_fcfa_xof
+--
+-- Defaut trouve en confrontant l'integration a une reference Moneroo detaillee.
+-- Il aurait fait echouer CHAQUE paiement.
+--
+-- plans_abonnement.devise vaut 'FCFA' — le nom que tout le monde emploie en
+-- Afrique de l'Ouest. Moneroo, lui, parle en code ISO 4217 : 'XOF'. La
+-- comparaison stricte lisait 'XOF' <> 'FCFA', marquait le paiement
+-- « montant_invalide », et n'activait jamais l'abonnement — alors que le
+-- client avait paye.
+--
+-- On garde 'FCFA' a l'affichage : c'est ce que lisent les clients. On
+-- normalise au moment de comparer.
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.devise_normalisee(p_devise TEXT)
+RETURNS TEXT LANGUAGE sql IMMUTABLE SET search_path = public AS $$
+  SELECT CASE UPPER(TRIM(COALESCE(p_devise, '')))
+           WHEN 'FCFA'  THEN 'XOF'   -- franc CFA d'Afrique de l'Ouest (UEMOA)
+           WHEN 'F CFA' THEN 'XOF'
+           WHEN 'CFA'   THEN 'XOF'
+           ELSE UPPER(TRIM(COALESCE(p_devise, '')))
+         END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.devise_normalisee(TEXT) TO authenticated;
+
+-- Et dans confirmer_paiement_abonnement(), la comparaison devient :
+--
+--   IF p_montant IS DISTINCT FROM v_paiement.montant
+--      OR public.devise_normalisee(p_devise)
+--         IS DISTINCT FROM public.devise_normalisee(v_paiement.devise) THEN
