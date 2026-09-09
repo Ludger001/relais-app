@@ -1915,3 +1915,199 @@ body.landing-body {
   min-width: 0;
   max-width: 100%;
 }
+
+
+/* =========================================================================== */
+/* TUNNELS D'INSCRIPTION — reprise de la mise en page                          */
+/* Ajouté le 9 septembre 2026. Bloc volontairement isolé en fin de fichier :   */
+/* le site est en ligne, ce diff doit se relire et s'annuler d'un seul geste.  */
+/*                                                                             */
+/* Six défauts mesurés au navigateur, pas supposés :                          */
+/*   1. les champs faisaient 14,72 px — sous 16 px, iOS zoome tout seul à la   */
+/*      sélection, et la correction n'existait qu'en dessous de 640 px, donc   */
+/*      pas sur une tablette ;                                                 */
+/*   2. le bouton radio des cartes Mobile Money chevauchait le nom de          */
+/*      l'opérateur, sur les quatre cartes, à toutes les largeurs ;            */
+/*   3. plusieurs commandes autonomes passaient sous 44 px de haut ;           */
+/*   4. la page faisait 1683 px de haut sur ordinateur, soit près de deux      */
+/*      écrans, alors qu'elle sert de modèle de référence pour la maquette ;   */
+/*   5. le titre laissait un mot seul sur la deuxième ligne ;                  */
+/*   6. le prix « 10 000 FCFA / mois » se coupait en deux dans le             */
+/*      récapitulatif.                                                         */
+/* =========================================================================== */
+
+/* La largeur du panneau était posée en style en ligne dans le HTML, donc      */
+/* impossible à adapter par palier. Elle vit ici désormais.                    */
+.auth-page {
+  max-width: 1080px;
+  padding-top: 2.25rem;
+  padding-bottom: 3rem;
+}
+
+/* --- 1. Champs de saisie : 16 px partout, pas seulement sur téléphone ----- */
+.form-input,
+.custom-select,
+input[type='text'],
+input[type='email'],
+input[type='tel'],
+input[type='password'],
+input[type='number'],
+select,
+textarea {
+  font-size: 16px;
+}
+
+/* --- 3. Commandes autonomes : 44 px de haut (WCAG 2.2) ------------------- */
+/* Les liens en pleine phrase ne sont pas concernés : la norme les exempte    */
+/* explicitement, et les forcer à 44 px crèverait l'interligne du paragraphe. */
+.form-input,
+.custom-select,
+select,
+.btn-outline-sm {
+  min-height: 44px;
+}
+
+.btn-outline-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.form-checkbox-wrap input[type='checkbox'] {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  margin-top: 1px;
+  accent-color: var(--primary);
+}
+
+/* --- 2. Cartes Mobile Money : le radio sort du flux du texte -------------- */
+/* Il était en position absolue par-dessus le nom. Réserver de la place à     */
+/* droite corrigeait le chevauchement mais écrasait « Orange Money » sur deux */
+/* lignes. Une grille à deux colonnes règle les deux d'un coup : le radio     */
+/* occupe sa propre colonne, le texte dispose de tout le reste.               */
+/*                                                                            */
+/* ⚠️ NE PAS SIMPLIFIER EN « .momo-radio-card ». Le sélecteur est délibérément */
+/* descendant, pour peser plus lourd que la règle tactile de style.css :       */
+/*     @media (max-width: 900px) { label:has(input[type="radio"]) {            */
+/*       display: flex; align-items: center; gap: .5rem; min-height: 44px } }  */
+/* Cette règle-là a une spécificité (0,1,2), une simple classe (0,1,0). Avec   */
+/* la classe seule, la grille tenait sur ordinateur et se défaisait sous       */
+/* 900 px : le radio partait au centre et le nom se collait à droite. Le bogue */
+/* n'était donc visible qu'au téléphone.                                       */
+.momo-selection-grid .momo-radio-card {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  grid-template-areas:
+    'radio nom'
+    'radio sub';
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 12px;
+  min-height: 60px;
+}
+
+.momo-selection-grid .momo-radio-card input {
+  position: static;
+  grid-area: radio;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.momo-radio-name {
+  grid-area: nom;
+  align-self: end;
+}
+
+.momo-radio-sub {
+  grid-area: sub;
+  align-self: start;
+}
+
+/* --- 6. Le prix ne se coupe plus ----------------------------------------- */
+/* La ligne était un flex « étiquette à gauche, prix à droite ». Dans une     */
+/* colonne étroite, « 10 000 FCFA / mois » n'avait plus la place et se        */
+/* scindait après le slash. Empilé, il tient et se lit mieux.                 */
+.summary-price-row.highlight {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.summary-price-val {
+  white-space: nowrap;
+}
+
+/* --- 4 et 5. Hauteur et titre -------------------------------------------- */
+.auth-card-wrap {
+  padding: 2.25rem;
+}
+
+.auth-header-block {
+  max-width: 760px;
+  margin-bottom: 1.75rem;
+}
+
+.auth-title {
+  font-size: 1.95rem;
+  /* Sans cela, « Activez votre Pass Expansion Multi- / Pays » laissait un mot
+     seul sur la deuxième ligne. text-wrap équilibre les lignes du titre. */
+  text-wrap: balance;
+  margin: 0.35rem 0 0.6rem 0;
+}
+
+.auth-subtitle {
+  text-wrap: balance;
+}
+
+/* Au-delà de 900 px, la colonne du formulaire respire et les quatre          */
+/* opérateurs tiennent sur une seule ligne : deux lignes gagnées en hauteur.  */
+@media (min-width: 901px) {
+  .checkout-layout {
+    gap: 2rem;
+    align-items: flex-start;
+  }
+
+  .checkout-form-side {
+    flex: 1.45;
+    min-width: 0;
+  }
+
+  .checkout-summary-side {
+    flex: 1;
+    min-width: 0;
+    position: sticky;
+    top: 1.5rem;
+  }
+
+  /* Deux colonnes et non quatre : à quatre, il ne restait que 76 px de texte
+     par carte et « Orange Money » se coupait en deux. La ligne gagnée en
+     hauteur ne valait pas cela. */
+  .momo-selection-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Entre 641 et 900 px — tablettes — la mise en page passait en colonne mais   */
+/* le panneau gardait la marge des grands écrans. */
+@media (max-width: 900px) {
+  .auth-page {
+    padding-top: 1.75rem;
+    padding-bottom: 2.5rem;
+  }
+  .auth-title {
+    font-size: 1.7rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .auth-card-wrap {
+    padding: 1.5rem 1.15rem;
+  }
+  .auth-title {
+    font-size: 1.5rem;
+  }
+}
